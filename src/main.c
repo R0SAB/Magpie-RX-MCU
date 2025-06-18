@@ -173,6 +173,8 @@ void lcd_print(uint16_t x, uint16_t y, char* string, uint16_t font_color, uint16
 
     for(uint8_t char_cnt = 0; char_cnt < length; char_cnt++)
     {
+        uint8_t curr_char = string[char_cnt] - 0x20;
+
         x1 = x1+(font_width+1);
         uint16_t x2 = x1+(font_width);
 
@@ -191,6 +193,9 @@ void lcd_print(uint16_t x, uint16_t y, char* string, uint16_t font_color, uint16
             pixel_cnt++;
             lcd_send_data_16(font_color);
         }
+
+        curr_char++;
+
     }
 }
 
