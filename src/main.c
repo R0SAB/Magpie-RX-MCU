@@ -3,7 +3,10 @@
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/spi.h>
+#include <string.h>
+
 #include "font_44780.h"
+
 
 #define LCD_SPI SPI1
 #define LCD_SPI_PORT GPIOA
@@ -19,8 +22,8 @@
 #define LCD_CS_PORT GPIOB
 #define LCD_CS_PIN GPIO10
 
-const uint16_t lcd_offset_x = 0;
-const uint16_t lcd_offset_y = 35;
+static const uint16_t lcd_offset_x = 0;
+static const uint16_t lcd_offset_y = 35;
 
 #if LCD_SPI == SPI1
     const uint32_t SPI_RCC = RCC_SPI1;
@@ -60,9 +63,15 @@ const uint16_t lcd_offset_y = 35;
     const uint32_t LCD_CS_PORT_RCC = RCC_GPIOC;
 #endif
 
+uint16_t x_crtd(uint16_t x)
+{
+    return x + lcd_offset_x;
+}
 
-
-
+uint16_t y_crtd(uint16_t y)
+{
+    return y + lcd_offset_y;
+}
 
 void delay(uint32_t delay_cycles)
 {
@@ -129,10 +138,10 @@ void lcd_send_cmd_8(uint8_t cmd)
 
 void lcd_fill_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t color)
 {
-    uint16_t x1 = x + lcd_offset_x;
-    uint16_t y1 = y + lcd_offset_y;
-    uint16_t x2 = x + dx-1 + lcd_offset_x;
-    uint16_t y2 = y + dy-1 + lcd_offset_y;
+    uint16_t x1 = x_crtd(x);
+    uint16_t y1 = y_crtd(y);
+    uint16_t x2 = x1 + dx-1;
+    uint16_t y2 = y1 + dy-1;
 
     lcd_send_cmd_8(0x2A);
     lcd_send_data_16(x1);
@@ -151,6 +160,41 @@ void lcd_fill_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t co
         lcd_send_data_16(color);
     };
 }
+
+void lcd_print(uint16_t x, uint16_t y, char* string, uint16_t font_color, uint16_t bg_color)
+{
+    uint16_t x1 = x_crtd(x);
+    uint16_t y1 = y_crtd(y);
+
+    uint8_t font_height = 8;
+    uint8_t font_width = 5;
+
+    uint8_t length = strlen(string);
+
+    for(uint8_t char_cnt = 0; char_cnt < length; char_cnt++)
+    {
+        x1 = x1+(font_width+1);
+        uint16_t x2 = x1+(font_width);
+
+        lcd_send_cmd_8(0x2A);
+        lcd_send_data_16(x1);
+        lcd_send_data_16(x2);
+        lcd_send_cmd_8(0x2B);
+        lcd_send_data_16(y1);
+        lcd_send_data_16(y1+font_height);
+
+        uint16_t pixel_cnt = 0;
+
+        lcd_send_cmd_8(0x2C);
+        while(pixel_cnt < (font_height*(font_width+1)))
+        {
+            pixel_cnt++;
+            lcd_send_data_16(font_color);
+        }
+    }
+}
+
+
 
 
 
@@ -209,4 +253,6 @@ void main(void)
     delay(10000);
     
     lcd_fill_rect(0,0,320,170,0x055F);
+
+    lcd_print(20, 20, "ABCDEFG", 0x5F00, 0x0000);
 }
