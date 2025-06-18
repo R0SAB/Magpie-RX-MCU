@@ -124,10 +124,51 @@ void lcd_send_cmd_8(uint8_t cmd)
     spi_send(LCD_SPI, cmd);
 }
 
+void lcd_fill_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t color)
+{
+    uint16_t x1 = x + lcd_offset_x;
+    uint16_t y1 = y + lcd_offset_y;
+    uint16_t x2 = x + dx-1 + lcd_offset_x;
+    uint16_t y2 = y + dy-1 + lcd_offset_y;
 
-void lcd_init(void)
+    lcd_send_cmd_8(0x2A);
+    lcd_send_data_16(x1);
+    lcd_send_data_16(x2);
+    lcd_send_cmd_8(0x2B);
+    lcd_send_data_16(y1);
+    lcd_send_data_16(y2);
+
+    uint32_t pixel_cnt = 0;
+
+    lcd_send_cmd_8(0x2C);
+
+    while(pixel_cnt < (dx*dy))
+    {
+        pixel_cnt++;
+        lcd_send_data_16(color);
+    };
+}
+
+
+
+void lcd_init(uint8_t orientation) // https://github.com/russhughes/st7789_mpy/blob/master/README.md#madctl-constants
 {
     gpio_clear(LCD_CS_PORT, LCD_CS_PIN);
+
+    uint8_t orientation_byte = 0;
+
+    switch (orientation)
+    {
+    case 0: orientation_byte = 0x00; break;
+    case 1: orientation_byte = 0x80; break;
+    case 2: orientation_byte = 0x40; break;
+    case 3: orientation_byte = 0xC0; break;
+    case 4: orientation_byte = 0x20; break;
+    case 5: orientation_byte = 0xA0; break;
+    case 6: orientation_byte = 0x60; break;
+    case 7: orientation_byte = 0xE0; break;
+    default: orientation_byte = 0x00; break;
+    }
 
     lcd_reset();
     delay(10000);
@@ -140,7 +181,7 @@ void lcd_init(void)
     lcd_send_data_8(0x05);      // RGB565(16bit) 0x05,
        
     lcd_send_cmd_8(0x36);   //MADCTL
-    lcd_send_data_8(0x14 | (1 << 7));  // 0x14 R-G-B, 1 << 7 чтоб отзеркалить
+    lcd_send_data_8(orientation_byte);
        
     lcd_send_cmd_8(0x21);   //INVON
 
@@ -160,7 +201,9 @@ void main(void)
 
     delay(10000);
 
-    lcd_init();
-    
+    lcd_init(5);
 
+    delay(10000);
+    
+    lcd_fill_rect(0,0,320,170,0x055F);
 }
