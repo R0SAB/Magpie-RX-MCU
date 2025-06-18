@@ -105,6 +105,7 @@ void lcd_reset(void)
 
 void lcd_send_data_8(uint8_t data)
 {
+    while(SPI_SR(LCD_SPI) & SPI_SR_BSY);
     spi_set_dff_8bit(LCD_SPI);
     gpio_set(LCD_DC_PORT, LCD_DC_PIN);
     spi_send(LCD_SPI, data);
@@ -112,6 +113,7 @@ void lcd_send_data_8(uint8_t data)
 
 void lcd_send_data_16(uint16_t data)
 {
+    while(SPI_SR(LCD_SPI) & SPI_SR_BSY);
     spi_set_dff_16bit(LCD_SPI);
     gpio_set(LCD_DC_PORT, LCD_DC_PIN);
     spi_send(LCD_SPI, data);
@@ -119,6 +121,7 @@ void lcd_send_data_16(uint16_t data)
 
 void lcd_send_cmd_8(uint8_t cmd)
 {
+    while(SPI_SR(LCD_SPI) & SPI_SR_BSY);
     spi_set_dff_8bit(LCD_SPI);
     gpio_clear(LCD_DC_PORT, LCD_DC_PIN);
     spi_send(LCD_SPI, cmd);
