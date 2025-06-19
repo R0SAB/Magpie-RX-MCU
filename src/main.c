@@ -193,7 +193,7 @@ void lcd_print(uint16_t x, uint16_t y, char* string, uint16_t font_color, uint16
         lcd_send_cmd_8(0x2C);
         while(pixel_cnt < (font_height*(font_width+1)))
         {
-            if((font_44780[curr_char][line_cnt] << shift_cnt) & 0b000010000)
+            if((font_44780[curr_char][line_cnt] << shift_cnt) & 0b00010000)
                 lcd_send_data_16(font_color);
             else lcd_send_data_16(bg_color);
 
@@ -292,7 +292,7 @@ void main(void)
 
     delay(10000);
     
-    lcd_fill_rect(0,0,320,170,0x0000);
+    lcd_fill_rect(0,0,320,170,0x0025);
 
     lcd_print(10, 5, "Light takes you up, it brings you down", 0x055F, 0x0025);
     lcd_print(10, 15, "Changes the pain that remains.", 0x055F, 0x0025);
