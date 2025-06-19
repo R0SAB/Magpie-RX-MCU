@@ -176,7 +176,6 @@ void lcd_print(uint16_t x, uint16_t y, char* string, uint16_t font_color, uint16
     {
         uint8_t curr_char = string[char_cnt] - 0x20;
 
-        x1 = x1+(font_width+1);
         uint16_t x2 = x1+(font_width);
 
         lcd_send_cmd_8(0x2A);
@@ -208,6 +207,7 @@ void lcd_print(uint16_t x, uint16_t y, char* string, uint16_t font_color, uint16
             }
         }
 
+        x1 = x1+(font_width+1);
         //curr_char++;
 
     }
@@ -294,13 +294,13 @@ void main(void)
     
     lcd_fill_rect(0,0,320,170,0x0000);
 
-    lcd_print(10, 5, "Light takes you up, it brings you down", 0x055F, 0x0000);
-    lcd_print(10, 15, "Changes the pain that remains.", 0x055F, 0x0000);
-    lcd_print(10, 25, "Keep moving fast through the wind and the rain,", 0x055F, 0x0000);
-    lcd_print(10, 35, "And if the world keeps spinning round", 0x055F, 0x0000);
-    lcd_print(10, 45, "You'll be back again", 0x055F, 0x0000);
+    lcd_print(10, 5, "Light takes you up, it brings you down", 0x055F, 0x0025);
+    lcd_print(10, 15, "Changes the pain that remains.", 0x055F, 0x0025);
+    lcd_print(10, 25, "Keep moving fast through the wind and the rain,", 0x055F, 0x0025);
+    lcd_print(10, 35, "And if the world keeps spinning round", 0x055F, 0x0025);
+    lcd_print(10, 45, "You'll be back again", 0x055F, 0x0025);
 
-    lcd_print(10, 60, "(c)Camel - Air Born", 0x055F, 0x0000);
+    lcd_print(10, 60, "(c)Camel - Air Born", 0x055F, 0x0025);
 
     lcd_draw_bmp(120, 70, 179, 100, bitmap);
 }
