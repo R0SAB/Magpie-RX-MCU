@@ -176,22 +176,25 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, char* string, uint16_t fon
     {
         uint8_t curr_char = string[char_cnt] - 0x20;
 
-        uint16_t x2 = x1+(font_width);
+        uint16_t x2 = x1+(font_width+1)*scale-1;
 
         lcd_send_cmd_8(0x2A);
         lcd_send_data_16(x1);
         lcd_send_data_16(x2);
         lcd_send_cmd_8(0x2B);
         lcd_send_data_16(y1);
-        lcd_send_data_16(y1+font_height);
+        lcd_send_data_16(y1+(font_height-1)*scale);
 
         uint16_t pixel_cnt = 0;
         
         uint8_t line_cnt = 0;
         uint8_t shift_cnt = 0;
 
+        uint8_t scale_cnt_1 = 0;
+        uint8_t scale_cnt_2 = 0;
+
         lcd_send_cmd_8(0x2C);
-        while(pixel_cnt < (font_height*(font_width+1)))
+        while(pixel_cnt < (font_height*(font_width+1)*scale*scale))
         {
             if((font_44780[curr_char][line_cnt] << shift_cnt) & 0b00010000)
                 lcd_send_data_16(font_color);
@@ -199,15 +202,28 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, char* string, uint16_t fon
 
             pixel_cnt++;
 
-            if(shift_cnt < font_width) shift_cnt++;
-            else
+            if(scale_cnt_1 == (scale-1))
             {
-                shift_cnt = 0;
-                line_cnt++;
+                if(shift_cnt < font_width) shift_cnt++;
+                else shift_cnt = 0;
+
+                if(shift_cnt == font_width)
+                {
+                    if(scale_cnt_2 == (scale-1)) line_cnt++;
+
+                    if(scale_cnt_2 < (scale-1)) scale_cnt_2++;
+                    else scale_cnt_2 = 0;
+                }
             }
+
+            //if(shift_cnt == font_width) line_cnt++;
+
+            if(scale_cnt_1 < (scale-1)) scale_cnt_1++;
+            else scale_cnt_1 = 0;
+            
         }
 
-        x1 = x1+(font_width+1);
+        x1 = x1+(font_width+1)*scale;
         //curr_char++;
 
     }
