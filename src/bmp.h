@@ -1,4 +1,4 @@
 #pragma once
 #include <stdint.h>
 
-extern const uint16_t bitmap[17900];
+extern const uint16_t bitmap[22500];

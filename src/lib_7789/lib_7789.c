@@ -371,3 +371,21 @@ void lcd_init(uint8_t orientation) // https://github.com/russhughes/st7789_mpy/b
        
     lcd_send_cmd_8(0x29);   //DISPON
 }
+
+void lcd_draw_pixel(uint16_t x, uint16_t y, uint16_t color)
+{
+    uint16_t x1 = x_crtd(x);
+    uint16_t y1 = y_crtd(y);
+    lcd_send_cmd_8(0x2A);
+    lcd_send_data_16(x1);
+    lcd_send_cmd_8(0x2B);
+    lcd_send_data_16(y1);
+    lcd_send_cmd_8(0x2C);
+    lcd_send_data_16(color);
+}
+
+
+void lcd_draw_line(uint16_t x1, uint16_t x2, uint16_t y1, uint16_t y2, uint16_t color)
+{
+
+}

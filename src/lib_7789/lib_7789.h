@@ -11,6 +11,7 @@ void lcd_draw_bmp(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t* bm
 void lcd_print(uint16_t x, uint16_t y, uint8_t scale, char* string, uint16_t font_color, uint16_t bg_color);
 void lcd_fill_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t color);
 void lcd_draw_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint8_t thick, uint16_t color);
+void lcd_draw_line(uint16_t x1, uint16_t x2, uint16_t y1, uint16_t y2, uint16_t color);
 
 // ################# Low-level fucntions (internal use) ####################
 
@@ -21,4 +22,5 @@ void lcd_reset(void);
 void lcd_send_data_8(uint8_t data);
 void lcd_send_data_16(uint16_t data);
 void lcd_send_cmd_8(uint8_t cmd);
+void lcd_draw_pixel(uint16_t x, uint16_t y, uint16_t color);
 
