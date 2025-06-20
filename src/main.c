@@ -22,7 +22,7 @@ void main(void)
     lcd_print(5, 65, 1,  "Personality: gentle,", 0x055F, 0x0025);
     lcd_print(5, 75, 1,  "      careful, calm, sad", 0x055F, 0x0025);
     lcd_print(5, 85, 1,  "Occupation: ancient tech", 0x055F, 0x0025);
-    lcd_print(5, 95, 1, "      (Sheikah and Zonai)", 0x055F, 0x0025);
+    lcd_print(5, 95, 1,  "      (Sheikah and Zonai)", 0x055F, 0x0025);
     lcd_print(5, 105, 1, "Hobby: music (Hammond", 0x055F, 0x0025);
     lcd_print(5, 115, 1, "               organ)", 0x055F, 0x0025);
     lcd_print(5, 125, 1, "Special traits: mute", 0x055F, 0x0025);
