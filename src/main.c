@@ -183,7 +183,7 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, char* string, uint16_t fon
         lcd_send_data_16(x2);
         lcd_send_cmd_8(0x2B);
         lcd_send_data_16(y1);
-        lcd_send_data_16(y1+(font_height-1)*scale);
+        lcd_send_data_16(y1+font_height*scale-1);
 
         uint16_t pixel_cnt = 0;
         
@@ -209,7 +209,7 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, char* string, uint16_t fon
 
                 if(shift_cnt == font_width)
                 {
-                    if(scale_cnt_2 == (scale-1)) line_cnt++;
+                    if(scale_cnt_2 == 0) line_cnt++;
 
                     if(scale_cnt_2 < (scale-1)) scale_cnt_2++;
                     else scale_cnt_2 = 0;
@@ -310,10 +310,11 @@ void main(void)
     
     lcd_fill_rect(0,0,320,170,0x0025);
 
-    lcd_print(10, 10, 1, "Rito", 0x055F, 0x0035);
-    lcd_print(10, 20, 2, "Rito", 0x055F, 0x0035);
-    lcd_print(10, 40, 3, "Rito", 0x055F, 0x0035);
-    lcd_print(10, 70, 4, "Rito", 0x055F, 0x0035);
+    lcd_print(10, 10, 1, "Test", 0x055F, 0x0035);
+    lcd_print(10, 20, 2, "Test", 0x055F, 0x0035);
+    lcd_print(10, 40, 3, "Test", 0x055F, 0x0035);
+    lcd_print(10, 70, 4, "Test", 0x055F, 0x0035);
+    lcd_print(10, 110, 5, "Test", 0x055F, 0x0035);
 
     lcd_draw_bmp(120, 70, 179, 100, bitmap);
 }
