@@ -1,3 +1,4 @@
+#pragma once
 #include <stdint.h>
 
 #define LCD_SPI SPI1

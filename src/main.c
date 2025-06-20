@@ -1,6 +1,6 @@
+#include "lib_7789.h"
 #include "bmp.h"
 
-#include "lib_7789.h"
 
 void main(void)
 {
