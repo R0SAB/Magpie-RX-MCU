@@ -81,7 +81,7 @@ void delay(uint32_t delay_cycles)
     while(counter < delay_cycles) counter++;
 }
 
-void spi_setup(void)
+void lcd_spi_setup(void)
 {
     rcc_periph_clock_enable(SPI_RCC);
     rcc_periph_clock_enable(LCD_SPI_PORT_RCC);
@@ -258,6 +258,8 @@ void lcd_init(uint8_t orientation) // https://github.com/russhughes/st7789_mpy/b
 {
     gpio_clear(LCD_CS_PORT, LCD_CS_PIN);
 
+    lcd_spi_setup();
+
     uint8_t orientation_byte = 0;
 
     switch (orientation)
@@ -298,15 +300,15 @@ void main(void)
 {
     rcc_clock_setup_in_hse_8mhz_out_72mhz();
 
-    delay(10000);
+    //delay(10000);
 
-    spi_setup();
+    //lcd_spi_setup();
 
-    delay(10000);
+    //delay(10000);
 
     lcd_init(5);
 
-    delay(10000);
+    //delay(10000);
  
     lcd_fill_rect(0,0,320,170,0x0025);
 
