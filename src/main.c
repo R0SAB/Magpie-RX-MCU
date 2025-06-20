@@ -390,15 +390,7 @@ void main(void)
 {
     rcc_clock_setup_in_hse_8mhz_out_72mhz();
 
-    //delay(10000);
-
-    //lcd_spi_setup();
-
-    //delay(10000);
-
     lcd_init(5);
-
-    //delay(10000);
  
     lcd_fill_rect(0,0,320,170,0x0025);
 
