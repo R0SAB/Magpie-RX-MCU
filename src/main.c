@@ -162,6 +162,96 @@ void lcd_fill_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t co
     };
 }
 
+void lcd_draw_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint8_t thick, uint16_t color)
+{
+    uint16_t x1 = x_crtd(x);
+    uint16_t x2 = x1+dx-1;
+    uint16_t y1 = y_crtd(y);
+    uint16_t y2 = y2+thick-1;
+    
+    lcd_send_cmd_8(0x2A);
+    lcd_send_data_16(x1);
+    lcd_send_data_16(x2);
+    lcd_send_cmd_8(0x2B);
+    lcd_send_data_16(y1);
+    lcd_send_data_16(y2);
+
+    uint32_t pixel_cnt = 0;
+
+    lcd_send_cmd_8(0x2C);
+    while(pixel_cnt < (dx*thick))
+    {
+        lcd_send_data_16(color);
+        pixel_cnt++;
+    }
+
+    x1 = x_crtd(x);
+    x2 = x1+thick-1;
+    y1 = y_crtd(y);
+    y2 = y1+dy-1;
+
+    lcd_send_cmd_8(0x2A);
+    lcd_send_data_16(x1);
+    lcd_send_data_16(x2);
+    lcd_send_cmd_8(0x2B);
+    lcd_send_data_16(y1);
+    lcd_send_data_16(y2);
+
+    pixel_cnt = 0;
+
+    lcd_send_cmd_8(0x2C);
+    while(pixel_cnt < (dy*thick))
+    {
+        lcd_send_data_16(color);
+        pixel_cnt++;
+    }
+
+    x1 = x_crtd(x);
+    x2 = x1+dx-1;
+    y2 = y_crtd(y)+dy-1;
+    y1 = y2-thick+1;
+
+    lcd_send_cmd_8(0x2A);
+    lcd_send_data_16(x1);
+    lcd_send_data_16(x2);
+    lcd_send_cmd_8(0x2B);
+    lcd_send_data_16(y1);
+    lcd_send_data_16(y2);
+
+    pixel_cnt = 0;
+
+    lcd_send_cmd_8(0x2C);
+    while(pixel_cnt < (dx*thick))
+    {
+        lcd_send_data_16(color);
+        pixel_cnt++;
+    }
+
+    x2 = x_crtd(x)+dx-1;
+    x1 = x2-thick+1;
+    y1 = y_crtd(y);
+    y2 = y2+thick-1;
+
+    lcd_send_cmd_8(0x2A);
+    lcd_send_data_16(x1);
+    lcd_send_data_16(x2);
+    lcd_send_cmd_8(0x2B);
+    lcd_send_data_16(y1);
+    lcd_send_data_16(y2);
+
+    pixel_cnt = 0;
+
+    lcd_send_cmd_8(0x2C);
+    while(pixel_cnt < (dy*thick))
+    {
+        lcd_send_data_16(color);
+        pixel_cnt++;
+    }
+
+}
+
+
+
 void lcd_print(uint16_t x, uint16_t y, uint8_t scale, char* string, uint16_t font_color, uint16_t bg_color)
 {
     uint16_t x1 = x_crtd(x);
@@ -319,4 +409,8 @@ void main(void)
     lcd_print(4, 110, 5, "Hyzeth", 0x055F, 0x0025);
 
     lcd_draw_bmp(140, 0, 179, 100, bitmap);
+
+    lcd_draw_rect(10,10,70,100,5,0x0FFF);
+
+    lcd_draw_rect(5,5,310,160,2,0xFFFF);
 }
