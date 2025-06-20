@@ -307,14 +307,14 @@ void main(void)
     lcd_init(5);
 
     delay(10000);
-    
+ 
     lcd_fill_rect(0,0,320,170,0x0025);
 
-    lcd_print(10, 10, 1, "Test", 0x055F, 0x0035);
-    lcd_print(10, 20, 2, "Test", 0x055F, 0x0035);
-    lcd_print(10, 40, 3, "Test", 0x055F, 0x0035);
-    lcd_print(10, 70, 4, "Test", 0x055F, 0x0035);
-    lcd_print(10, 110, 5, "Test", 0x055F, 0x0035);
+    lcd_print(4, 10, 1, "Rito", 0x055F, 0x0025);
+    lcd_print(4, 20, 2, "Saki", 0x055F, 0x0025);
+    lcd_print(4, 40, 3, "Teba", 0x055F, 0x0025);
+    lcd_print(4, 70, 4, "Revali", 0x055F, 0x0025);
+    lcd_print(4, 110, 5, "Hyzeth", 0x055F, 0x0025);
 
-    lcd_draw_bmp(120, 70, 179, 100, bitmap);
+    lcd_draw_bmp(140, 0, 179, 100, bitmap);
 }
