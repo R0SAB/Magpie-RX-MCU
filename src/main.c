@@ -30,4 +30,14 @@ void main(void)
     lcd_print(5, 145, 1, "      hylian, with which", 0x055F, 0x0025);
     lcd_print(5, 155, 1, "      is in relationship", 0x055F, 0x0025);
 
+    lcd_draw_line(4, 43, 5+6*5-3, 43, 0x055F);
+    lcd_draw_line(4, 53, 5+6*7-3, 53, 0x055F);
+    lcd_draw_line(4, 63, 5+6*5-3, 63, 0x055F);
+    lcd_draw_line(4, 73, 5+6*12-3, 73, 0x055F);
+    lcd_draw_line(4, 93, 5+6*11-3, 93, 0x055F);
+    lcd_draw_line(4, 113, 5+6*6-3, 113, 0x055F);
+    lcd_draw_line(4, 133, 5+6*15-3, 133, 0x055F);
+    lcd_draw_line(4, 143, 5+6*6-3, 143, 0x055F);
+
+
 }

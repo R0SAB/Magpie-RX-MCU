@@ -385,7 +385,25 @@ void lcd_draw_pixel(uint16_t x, uint16_t y, uint16_t color)
 }
 
 
-void lcd_draw_line(uint16_t x1, uint16_t x2, uint16_t y1, uint16_t y2, uint16_t color)
-{
+void lcd_draw_line(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color) {
+    int16_t dx = (x2 > x1) ? (int16_t)(x2 - x1) : (int16_t)(x1 - x2);
+    int16_t dy = (y2 > y1) ? (int16_t)(y2 - y1) : (int16_t)(y1 - y2);
+    int16_t sx = (x1 < x2) ? 1 : -1;
+    int16_t sy = (y1 < y2) ? 1 : -1;
+    int16_t err = dx - dy;
+    int16_t e2;
 
+    while (1) {
+        lcd_draw_pixel(x1, y1, color);
+        if (x1 == x2 && y1 == y2) break;
+        e2 = 2 * err;
+        if (e2 > -dy) {
+            err -= dy;
+            x1 += sx;
+        }
+        if (e2 < dx) {
+            err += dx;
+            y1 += sy;
+        }
+    }
 }
