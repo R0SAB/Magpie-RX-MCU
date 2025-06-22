@@ -10,7 +10,7 @@ void main(void)
  
     lcd_fill_rect(0,0,320,170,0x0025);
 
-    lcd_print(45, 12, 2, "Hyzeth", 0x055F, 0x0025);
+    lcd_print(43, 11, 2, "Hyzeth", 0x055F, 0x0025);
 
     lcd_draw_bmp(160, 10, 150, 150, bitmap);
 
