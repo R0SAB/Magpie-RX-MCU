@@ -102,7 +102,7 @@ void lcd_reset(void)
 
 void lcd_send_data_8(uint8_t data)
 {
-    while(SPI_SR(LCD_SPI) & SPI_SR_BSY);
+    //while(SPI_SR(LCD_SPI) & SPI_SR_BSY);
     spi_set_dff_8bit(LCD_SPI);
     gpio_set(LCD_DC_PORT, LCD_DC_PIN);
     spi_send(LCD_SPI, data);
@@ -118,7 +118,7 @@ void lcd_send_data_16(uint16_t data)
 
 void lcd_send_cmd_8(uint8_t cmd)
 {
-    while(SPI_SR(LCD_SPI) & SPI_SR_BSY);
+    //while(SPI_SR(LCD_SPI) & SPI_SR_BSY);
     spi_set_dff_8bit(LCD_SPI);
     gpio_clear(LCD_DC_PORT, LCD_DC_PIN);
     spi_send(LCD_SPI, cmd);
@@ -241,69 +241,38 @@ void lcd_draw_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint8_t thi
 
 void lcd_print(uint16_t x, uint16_t y, uint8_t scale, char* string, uint16_t font_color, uint16_t bg_color)
 {
-    uint16_t x1 = x_crtd(x);
-    uint16_t y1 = y_crtd(y);
-
     uint8_t font_height = 8;
     uint8_t font_width = 5;
 
     uint8_t length = strlen(string);
 
-    for(uint8_t char_cnt = 0; char_cnt < length; char_cnt++)
+    uint16_t x1 = x_crtd(x);
+    uint16_t y1 = y_crtd(y);
+    uint16_t x2 = x1 + ((font_width + 1) * length) - 1;
+    uint16_t y2 = y1 + font_height;
+
+    lcd_send_cmd_8(0x2A);
+    lcd_send_data_16(x1);
+    lcd_send_data_16(x2);
+    lcd_send_cmd_8(0x2B);
+    lcd_send_data_16(y1);
+    lcd_send_data_16(y2);
+    lcd_send_cmd_8(0x2C);
+
+    for(uint8_t v_cnt = 0; v_cnt < font_height; v_cnt++)
     {
-        uint8_t curr_char = string[char_cnt] - 0x20;
-
-        uint16_t x2 = x1+(font_width+1)*scale-1;
-
-        lcd_send_cmd_8(0x2A);
-        lcd_send_data_16(x1);
-        lcd_send_data_16(x2);
-        lcd_send_cmd_8(0x2B);
-        lcd_send_data_16(y1);
-        lcd_send_data_16(y1+font_height*scale-1);
-
-        uint16_t pixel_cnt = 0;
-        
-        uint8_t line_cnt = 0;
-        uint8_t shift_cnt = 0;
-
-        uint8_t scale_cnt_1 = 0;
-        uint8_t scale_cnt_2 = 0;
-
-        lcd_send_cmd_8(0x2C);
-        while(pixel_cnt < (font_height*(font_width+1)*scale*scale))
+        for(uint8_t char_cnt = 0; char_cnt < length; char_cnt++)
         {
-            if((font_44780[curr_char][line_cnt] << shift_cnt) & 0b00010000)
-                lcd_send_data_16(font_color);
-            else lcd_send_data_16(bg_color);
+            uint8_t char_addr = string[char_cnt] - 0x20;
 
-            pixel_cnt++;
-
-            if(scale_cnt_1 == (scale-1))
+            for(uint8_t shift_cnt = 0; shift_cnt < font_width + 1; shift_cnt++)
             {
-                if(shift_cnt < font_width) shift_cnt++;
-                else shift_cnt = 0;
-
-                if(shift_cnt == font_width)
-                {
-                    if(scale_cnt_2 == 0) line_cnt++;
-
-                    if(scale_cnt_2 < (scale-1)) scale_cnt_2++;
-                    else scale_cnt_2 = 0;
-                }
+                if((font_44780[char_addr][v_cnt] << shift_cnt) & 0b00010000) lcd_send_data_16(font_color);
+                else lcd_send_data_16(bg_color);
             }
-
-            //if(shift_cnt == font_width) line_cnt++;
-
-            if(scale_cnt_1 < (scale-1)) scale_cnt_1++;
-            else scale_cnt_1 = 0;
-            
         }
-
-        x1 = x1+(font_width+1)*scale;
-        //curr_char++;
-
     }
+
 }
 
 void lcd_draw_bmp(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t* bmp)

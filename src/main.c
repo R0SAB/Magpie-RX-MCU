@@ -65,7 +65,7 @@ void encoder_timer_init(void)
 
     rcc_periph_clock_enable(RCC_TIM2);
     timer_slave_set_mode(TIM2, TIM_SMCR_SMS_EM3);
-    timer_set_prescaler(TIM2, 1);
+    timer_set_prescaler(TIM2, 0);
     //timer_set_period(TIM2, 2560);
     timer_enable_counter(TIM2);
 }
@@ -85,6 +85,8 @@ void main(void)
     uint16_t encoder_prev = 0;
     int16_t encoder_diff = 0;
 
+    gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO4);
+
     while(1)
     {
         //if(offset < 319) offset+=1;
@@ -98,6 +100,11 @@ void main(void)
         lcd_draw_line(160, 5, 160, 9, 0xe8c3);
         lcd_draw_line(160, 20, 160, 24, 0xe8c3);
         lcd_draw_scale(0, 10, 320, 9, offset);
+
+        gpio_set(GPIOA, GPIO4);
+        lcd_print(100, 50, 1, "Hyzeth", 0x055F, 0x0025);
+        //lcd_print(50, 60, 2, "Hyzeth", 0x055F, 0x0025);
+        gpio_clear(GPIOA, GPIO4);
 
         //lcd_print(290-offset, 50, 1, "Hyzeth", 0x055f, 0x0025);
     }
