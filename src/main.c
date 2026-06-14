@@ -85,7 +85,7 @@ void main(void)
     uint16_t encoder_prev = 0;
     int16_t encoder_diff = 0;
 
-    gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO4);
+    //gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO4);
 
     while(1)
     {
@@ -101,10 +101,11 @@ void main(void)
         lcd_draw_line(160, 20, 160, 24, 0xe8c3);
         lcd_draw_scale(0, 10, 320, 9, offset);
 
-        gpio_set(GPIOA, GPIO4);
-        lcd_print(100, 50, 1, "Hyzeth", 0x055F, 0x0025);
+
+        //gpio_set(GPIOA, GPIO4);
+        //lcd_print(100, 50, 1, "Hyzeth", 0x055F, 0x0025);
         //lcd_print(50, 60, 2, "Hyzeth", 0x055F, 0x0025);
-        gpio_clear(GPIOA, GPIO4);
+        //gpio_clear(GPIOA, GPIO4);
 
         //lcd_print(290-offset, 50, 1, "Hyzeth", 0x055f, 0x0025);
     }
