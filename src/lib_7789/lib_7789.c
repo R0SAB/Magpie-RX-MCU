@@ -116,6 +116,15 @@ void lcd_send_data_16(uint16_t data)
     spi_send(LCD_SPI, data);
 }
 
+void lcd_send_packet_16(uint16_t* data, uint32_t length)
+{
+    //while(SPI_SR(LCD_SPI) & SPI_SR_BSY);
+    spi_set_dff_16bit(LCD_SPI);
+    gpio_set(LCD_DC_PORT, LCD_DC_PIN);
+
+    for(uint32_t a = 0; a < length; a++) spi_send(LCD_SPI, data[a]);
+}
+
 void lcd_send_cmd_8(uint8_t cmd)
 {
     //while(SPI_SR(LCD_SPI) & SPI_SR_BSY);
@@ -248,8 +257,33 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, char* string, uint16_t fon
 
     uint16_t x1 = x_crtd(x);
     uint16_t y1 = y_crtd(y);
-    uint16_t x2 = x1 + ((font_width + 1) * length) - 1;
-    uint16_t y2 = y1 + font_height;
+    uint16_t x2 = x1 + ((font_width + 1) * length) * scale - 1;
+    uint16_t y2 = y1 + font_height * scale;
+
+    uint32_t packet_length = (font_height * scale) * ((font_width+1) * scale) * length;
+    uint16_t packet[10000];
+    uint32_t packet_cnt = 0;
+
+    for(uint8_t v_cnt = 0; v_cnt < font_height; v_cnt++)    
+    {
+        for(uint8_t scale_v_cnt = 0; scale_v_cnt < scale; scale_v_cnt++)
+        {
+            for(uint8_t char_cnt = 0; char_cnt < length; char_cnt++)
+            {
+                uint8_t char_addr = string[char_cnt] - 0x20;
+
+                for(uint8_t shift_cnt = 0; shift_cnt < font_width + 1; shift_cnt++)
+                {
+                    for(uint8_t scale_h_cnt = 0; scale_h_cnt < scale; scale_h_cnt++)
+                    {
+                        if((font_44780[char_addr][v_cnt] << shift_cnt) & 0b00010000) packet[packet_cnt] = font_color;
+                        else packet[packet_cnt] = bg_color;
+                        packet_cnt++;
+                    }
+                }
+            }
+        }
+    }
 
     lcd_send_cmd_8(0x2A);
     lcd_send_data_16(x1);
@@ -257,21 +291,9 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, char* string, uint16_t fon
     lcd_send_cmd_8(0x2B);
     lcd_send_data_16(y1);
     lcd_send_data_16(y2);
+
     lcd_send_cmd_8(0x2C);
-
-    for(uint8_t v_cnt = 0; v_cnt < font_height; v_cnt++)
-    {
-        for(uint8_t char_cnt = 0; char_cnt < length; char_cnt++)
-        {
-            uint8_t char_addr = string[char_cnt] - 0x20;
-
-            for(uint8_t shift_cnt = 0; shift_cnt < font_width + 1; shift_cnt++)
-            {
-                if((font_44780[char_addr][v_cnt] << shift_cnt) & 0b00010000) lcd_send_data_16(font_color);
-                else lcd_send_data_16(bg_color);
-            }
-        }
-    }
+    lcd_send_packet_16(packet, packet_length);
 
 }
 
