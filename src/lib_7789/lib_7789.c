@@ -50,7 +50,6 @@ const uint32_t LCD_CS_PORT_RCC;
     const uint32_t LCD_CS_PORT_RCC = RCC_GPIOC;
 #endif
 
-
 uint16_t x_crtd(uint16_t x)
 {
     return x + lcd_offset_x;
@@ -248,19 +247,47 @@ void lcd_draw_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint8_t thi
 
 
 
-void lcd_print(uint16_t x, uint16_t y, uint8_t scale, char* string, uint16_t font_color, uint16_t bg_color)
+void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* string, uint16_t font_color, uint16_t bg_color)
 {
     uint8_t font_height = 8;
     uint8_t font_width = 5;
 
     uint8_t length = strlen(string);
+    uint16_t display_width = (font_width+1) * length * scale;
+    uint16_t display_height = font_height * scale;
 
-    uint16_t x1 = x_crtd(x);
-    uint16_t y1 = y_crtd(y);
-    uint16_t x2 = x1 + ((font_width + 1) * length) * scale - 1;
-    uint16_t y2 = y1 + font_height * scale;
+    uint16_t x1 = 0;
+    uint16_t y1 = 0;
+    uint16_t x2 = 0;
+    uint16_t y2 = 0;
 
-    uint32_t packet_length = (font_height * scale) * ((font_width+1) * scale) * length;
+    
+
+    if(alignment == ALIGN_LEFT)
+    {
+        x1 = x_crtd(x);
+        y1 = y_crtd(y);
+        x2 = x1 + display_width - 1;
+        y2 = y1 + display_height;
+    }
+
+    if(alignment == ALIGN_CENTER)
+    {
+        x1 = x_crtd(x) - display_width/2;
+        y1 = y_crtd(y);
+        x2 = x1 + display_width - 1;
+        y2 = y1 + display_height;
+    }
+
+    if(alignment == ALIGN_RIGHT)
+    {
+        x2 = x_crtd(x);
+        y1 = y_crtd(y);
+        x1 = x2 - display_width + 2;
+        y2 = y1 + display_height;
+    }
+
+    uint32_t packet_length = display_width * display_height;
     uint16_t packet[10000];
     uint32_t packet_cnt = 0;
 
