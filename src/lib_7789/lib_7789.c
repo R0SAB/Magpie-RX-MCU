@@ -3,6 +3,7 @@
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/spi.h>
+#include <libopencm3/stm32/dma.h>
 
 const uint32_t SPI_RCC;
 const uint32_t SPI_ID;
@@ -89,6 +90,7 @@ void lcd_spi_setup(void)
         SPI_CR1_DFF_8BIT,
         SPI_CR1_MSBFIRST
     );
+    spi_enable_tx_dma(LCD_SPI);
     spi_enable(LCD_SPI);
 }
 
@@ -101,6 +103,8 @@ void lcd_reset(void)
 
 void lcd_send_data_8(uint8_t data)
 {
+    while((DMA_CCR(DMA1, DMA_CHANNEL3)) & DMA_CCR_EN || (SPI_SR(LCD_SPI) & SPI_SR_BSY));
+    //while(dma)
     //while(SPI_SR(LCD_SPI) & SPI_SR_BSY);
     spi_set_dff_8bit(LCD_SPI);
     gpio_set(LCD_DC_PORT, LCD_DC_PIN);
@@ -109,7 +113,8 @@ void lcd_send_data_8(uint8_t data)
 
 void lcd_send_data_16(uint16_t data)
 {
-    //while(SPI_SR(LCD_SPI) & SPI_SR_BSY);
+    while((DMA_CCR(DMA1, DMA_CHANNEL3)) & DMA_CCR_EN || (SPI_SR(LCD_SPI) & SPI_SR_BSY));
+    // while(SPI_SR(LCD_SPI) & SPI_SR_BSY);
     spi_set_dff_16bit(LCD_SPI);
     gpio_set(LCD_DC_PORT, LCD_DC_PIN);
     spi_send(LCD_SPI, data);
@@ -117,6 +122,7 @@ void lcd_send_data_16(uint16_t data)
 
 void lcd_send_packet_16(uint16_t* data, uint32_t length)
 {
+    while((DMA_CCR(DMA1, DMA_CHANNEL3)) & DMA_CCR_EN || (SPI_SR(LCD_SPI) & SPI_SR_BSY));
     //while(SPI_SR(LCD_SPI) & SPI_SR_BSY);
     spi_set_dff_16bit(LCD_SPI);
     gpio_set(LCD_DC_PORT, LCD_DC_PIN);
@@ -126,6 +132,7 @@ void lcd_send_packet_16(uint16_t* data, uint32_t length)
 
 void lcd_send_cmd_8(uint8_t cmd)
 {
+    while((DMA_CCR(DMA1, DMA_CHANNEL3)) & DMA_CCR_EN || (SPI_SR(LCD_SPI) & SPI_SR_BSY));
     //while(SPI_SR(LCD_SPI) & SPI_SR_BSY);
     spi_set_dff_8bit(LCD_SPI);
     gpio_clear(LCD_DC_PORT, LCD_DC_PIN);
@@ -261,8 +268,6 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* strin
     uint16_t x2 = 0;
     uint16_t y2 = 0;
 
-    
-
     if(alignment == ALIGN_LEFT)
     {
         x1 = x_crtd(x);
@@ -288,7 +293,7 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* strin
     }
 
     uint32_t packet_length = display_width * display_height;
-    uint16_t packet[10000];
+    static uint16_t packet[8000];
     uint32_t packet_cnt = 0;
 
     for(uint8_t v_cnt = 0; v_cnt < font_height; v_cnt++)    
@@ -320,7 +325,13 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* strin
     lcd_send_data_16(y2);
 
     lcd_send_cmd_8(0x2C);
-    lcd_send_packet_16(packet, packet_length);
+    //lcd_send_packet_16(packet, packet_length);
+    spi_set_dff_16bit(LCD_SPI);
+    gpio_set(LCD_DC_PORT, LCD_DC_PIN);
+    dma_set_memory_address(DMA1, DMA_CHANNEL3, (uint32_t)&packet[0]);
+    dma_set_number_of_data(DMA1, DMA_CHANNEL3, packet_length);
+    dma_enable_channel(DMA1, DMA_CHANNEL3);
+    spi_send(LCD_SPI, 0);
 
 }
 

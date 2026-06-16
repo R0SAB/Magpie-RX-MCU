@@ -3,6 +3,8 @@
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/timer.h>
+#include <libopencm3/stm32/dma.h>
+#include <libopencm3/stm32/spi.h>
 #include <stdio.h>
 
 
@@ -57,24 +59,24 @@ void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t f
     uint16_t num_3_pos = 320-(offset_3 % 320);
     uint16_t num_4_pos = 320-(offset_4 % 320);
     
-    char num_1[9];
-    char num_2[9];
-    char num_3[9];
-    char num_4[9];
+    char num_1[11];
+    char num_2[11];
+    char num_3[11];
+    char num_4[11];
 
-    snprintf(num_1, 9, "  %d  ", (freq-offset_1*125)/1000+20);
-    snprintf(num_2, 9, "  %d  ", (freq-offset_2*125)/1000+20);
-    snprintf(num_3, 9, "  %d  ", (freq-offset_3*125)/1000+20);
-    snprintf(num_4, 9, "  %d  ", (freq-offset_4*125)/1000+20);
+    snprintf(num_1, 11, "   %d   ", (freq-offset_1*125)/1000+20);
+    snprintf(num_2, 11, "   %d   ", (freq-offset_2*125)/1000+20);
+    snprintf(num_3, 11, "   %d   ", (freq-offset_3*125)/1000+20);
+    snprintf(num_4, 11, "   %d   ", (freq-offset_4*125)/1000+20);
 
     if(num_1_pos > 29 && num_1_pos < 291) lcd_print(num_1_pos, 25, SCALE_1, ALIGN_CENTER, num_1, 0x055F, 0x0025);
-    else                                  lcd_print(num_1_pos, 25, SCALE_1, ALIGN_CENTER, "       ", 0x055F, 0x0025);
+    else                                  lcd_print(num_1_pos, 25, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
     if(num_2_pos > 29 && num_2_pos < 291) lcd_print(num_2_pos, 25, SCALE_1, ALIGN_CENTER, num_2, 0x055F, 0x0025);
-    else                                  lcd_print(num_2_pos, 25, SCALE_1, ALIGN_CENTER, "       ", 0x055F, 0x0025);
+    else                                  lcd_print(num_2_pos, 25, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
     if(num_3_pos > 29 && num_3_pos < 291) lcd_print(num_3_pos, 25, SCALE_1, ALIGN_CENTER, num_3, 0x055F, 0x0025);
-    else                                  lcd_print(num_3_pos, 25, SCALE_1, ALIGN_CENTER, "       ", 0x055F, 0x0025);
+    else                                  lcd_print(num_3_pos, 25, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
     if(num_4_pos > 29 && num_4_pos < 291) lcd_print(num_4_pos, 25, SCALE_1, ALIGN_CENTER, num_4, 0x055F, 0x0025);
-    else                                  lcd_print(num_4_pos, 25, SCALE_1, ALIGN_CENTER, "       ", 0x055F, 0x0025);
+    else                                  lcd_print(num_4_pos, 25, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
 
 }
 
@@ -88,10 +90,24 @@ void lcd_draw_freq_main(uint32_t freq)
     lcd_print(161, 50, SCALE_2, ALIGN_CENTER, print_buffer, 0x055F, 0x0025);
 }
 
+void lcd_dma_setup()
+{
+    rcc_periph_clock_enable(RCC_DMA1);
+    dma_disable_channel(DMA1, DMA_CHANNEL3);
+    dma_channel_reset(DMA1, DMA_CHANNEL3);
+    dma_set_peripheral_address(DMA1, DMA_CHANNEL3, SPI1_DR);
+    dma_set_memory_size(DMA1, DMA_CHANNEL3, DMA_CCR_MSIZE_16BIT);
+    dma_set_peripheral_size(DMA1, DMA_CHANNEL3, DMA_CCR_PSIZE_16BIT);
+    dma_set_read_from_memory(DMA1, DMA_CHANNEL3);
+    dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL3);
+}
+
 void main(void){
     rcc_clock_setup_in_hse_8mhz_out_72mhz();
 
     lcd_init(5);
+
+    lcd_dma_setup();
 
     encoder_timer_init();
  
@@ -103,10 +119,7 @@ void main(void){
 
     gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO4);
 
-    uint32_t freq = 7077500;
-    double freq_float = 1000.555;
-
-    //lcd_draw_freq_main(freq);
+    uint32_t freq = 10000000;
 
     while(1)
     {
