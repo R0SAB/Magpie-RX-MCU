@@ -328,10 +328,10 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* strin
     //lcd_send_packet_16(packet, packet_length);
     spi_set_dff_16bit(LCD_SPI);
     gpio_set(LCD_DC_PORT, LCD_DC_PIN);
+    dma_disable_channel(DMA1, DMA_CHANNEL3);
     dma_set_memory_address(DMA1, DMA_CHANNEL3, (uint32_t)&packet[0]);
     dma_set_number_of_data(DMA1, DMA_CHANNEL3, packet_length);
     dma_enable_channel(DMA1, DMA_CHANNEL3);
-    spi_send(LCD_SPI, 0);
 
 }
 
@@ -356,7 +356,6 @@ void lcd_draw_bmp(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t* bm
         lcd_send_data_16(bmp[pixel_cnt]);
     }
 }
-
 
 
 
