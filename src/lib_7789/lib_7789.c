@@ -104,11 +104,17 @@ void lcd_reset(void)
     gpio_set(LCD_RESET_PORT, LCD_RESET_PIN);
 }
 
+void lcd_send_cmd_8(uint8_t cmd)
+{
+    while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
+    spi_set_dff_8bit(LCD_SPI);
+    gpio_clear(LCD_DC_PORT, LCD_DC_PIN);
+    spi_send(LCD_SPI, cmd);
+}
+
 void lcd_send_data_8(uint8_t data)
 {
     while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
-    //while(dma)
-    //while(SPI_SR(LCD_SPI) & SPI_SR_BSY);
     spi_set_dff_8bit(LCD_SPI);
     gpio_set(LCD_DC_PORT, LCD_DC_PIN);
     spi_send(LCD_SPI, data);
@@ -117,7 +123,6 @@ void lcd_send_data_8(uint8_t data)
 void lcd_send_data_16(uint16_t data)
 {
     while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
-    // while(SPI_SR(LCD_SPI) & SPI_SR_BSY);
     spi_set_dff_16bit(LCD_SPI);
     gpio_set(LCD_DC_PORT, LCD_DC_PIN);
     spi_send(LCD_SPI, data);
@@ -133,13 +138,26 @@ void lcd_send_packet_16(uint16_t* data, uint32_t length)
     for(uint32_t a = 0; a < length; a++) spi_send(LCD_SPI, data[a]);
 }
 
-void lcd_send_cmd_8(uint8_t cmd)
+void lcd_dma_setup()
 {
-    while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
-    //while(SPI_SR(LCD_SPI) & SPI_SR_BSY);
-    spi_set_dff_8bit(LCD_SPI);
-    gpio_clear(LCD_DC_PORT, LCD_DC_PIN);
-    spi_send(LCD_SPI, cmd);
+    rcc_periph_clock_enable(RCC_DMA1);
+    dma_disable_channel(DMA1, DMA_CHANNEL3);
+    dma_channel_reset(DMA1, DMA_CHANNEL3);
+    dma_set_peripheral_address(DMA1, DMA_CHANNEL3, &SPI1_DR);
+    dma_set_memory_size(DMA1, DMA_CHANNEL3, DMA_CCR_MSIZE_16BIT);
+    dma_set_peripheral_size(DMA1, DMA_CHANNEL3, DMA_CCR_PSIZE_16BIT);
+    dma_set_read_from_memory(DMA1, DMA_CHANNEL3);
+    dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL3);
+}
+
+void lcd_dma_send(uint32_t length)
+{
+    spi_set_dff_16bit(LCD_SPI);
+    gpio_set(LCD_DC_PORT, LCD_DC_PIN);
+    dma_disable_channel(DMA1, DMA_CHANNEL3);
+    dma_set_memory_address(DMA1, DMA_CHANNEL3, (uint32_t)&lcd_buffer[0]);
+    dma_set_number_of_data(DMA1, DMA_CHANNEL3, length);
+    dma_enable_channel(DMA1, DMA_CHANNEL3);
 }
 
 void lcd_fill_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t color)
@@ -255,8 +273,6 @@ void lcd_draw_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint8_t thi
 
 }
 
-
-
 void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* string, uint16_t font_color, uint16_t bg_color)
 {
     uint8_t font_height = 8;
@@ -327,13 +343,7 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* strin
     lcd_send_data_16(y2);
 
     lcd_send_cmd_8(0x2C);
-    //lcd_send_packet_16(packet, packet_length);
-    spi_set_dff_16bit(LCD_SPI);
-    gpio_set(LCD_DC_PORT, LCD_DC_PIN);
-    dma_disable_channel(DMA1, DMA_CHANNEL3);
-    dma_set_memory_address(DMA1, DMA_CHANNEL3, (uint32_t)&lcd_buffer[0]);
-    dma_set_number_of_data(DMA1, DMA_CHANNEL3, packet_length);
-    dma_enable_channel(DMA1, DMA_CHANNEL3);
+    lcd_dma_send(packet_length);
 
 }
 
@@ -445,12 +455,7 @@ void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t f
 
     lcd_send_cmd_8(0x2C);
 
-    spi_set_dff_16bit(LCD_SPI);
-    gpio_set(LCD_DC_PORT, LCD_DC_PIN);
-    dma_disable_channel(DMA1, DMA_CHANNEL3);
-    dma_set_memory_address(DMA1, DMA_CHANNEL3, (uint32_t)&lcd_buffer[0]);
-    dma_set_number_of_data(DMA1, DMA_CHANNEL3, packet_length);
-    dma_enable_channel(DMA1, DMA_CHANNEL3);
+    lcd_dma_send(packet_length);
 
     uint16_t num_1_pos = 320-(offset_1 % 320);
     uint16_t num_2_pos = 320-(offset_2 % 320);

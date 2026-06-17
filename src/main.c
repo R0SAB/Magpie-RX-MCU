@@ -30,18 +30,6 @@ void lcd_draw_freq_main(uint32_t freq)
     lcd_print(161, 50, SCALE_3, ALIGN_CENTER, print_buffer, 0x055F, 0x0025);
 }
 
-void lcd_dma_setup()
-{
-    rcc_periph_clock_enable(RCC_DMA1);
-    dma_disable_channel(DMA1, DMA_CHANNEL3);
-    dma_channel_reset(DMA1, DMA_CHANNEL3);
-    dma_set_peripheral_address(DMA1, DMA_CHANNEL3, &SPI1_DR);
-    dma_set_memory_size(DMA1, DMA_CHANNEL3, DMA_CCR_MSIZE_16BIT);
-    dma_set_peripheral_size(DMA1, DMA_CHANNEL3, DMA_CCR_PSIZE_16BIT);
-    dma_set_read_from_memory(DMA1, DMA_CHANNEL3);
-    dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL3);
-}
-
 void main(void){
     rcc_clock_setup_in_hse_8mhz_out_72mhz();
 
