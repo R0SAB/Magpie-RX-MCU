@@ -4,6 +4,7 @@
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/spi.h>
 #include <libopencm3/stm32/dma.h>
+#include <stdio.h>
 
 const uint32_t SPI_RCC;
 const uint32_t SPI_ID;
@@ -13,6 +14,7 @@ const uint32_t LCD_RESET_PORT_RCC;
 const uint32_t LCD_CS_PORT_RCC;
 
 static uint16_t lcd_buffer[8000];
+static uint8_t font_ram[91][8];
 
 #if LCD_SPI == SPI1
     const uint32_t SPI_RCC = RCC_SPI1;
@@ -308,7 +310,7 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* strin
                 {
                     for(uint8_t scale_h_cnt = 0; scale_h_cnt < scale; scale_h_cnt++)
                     {
-                        if((font_44780[char_addr][v_cnt] << shift_cnt) & 0b00010000) lcd_buffer[packet_cnt] = font_color;
+                        if((font_ram[char_addr][v_cnt] << shift_cnt) & 0b00010000) lcd_buffer[packet_cnt] = font_color;
                         else lcd_buffer[packet_cnt] = bg_color;
                         packet_cnt++;
                     }
@@ -430,6 +432,8 @@ void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t f
 
 void lcd_init(uint8_t orientation) // https://github.com/russhughes/st7789_mpy/blob/master/README.md#madctl-constants
 {
+    memcpy(font_ram, font_44780, sizeof(font_44780));
+
     gpio_clear(LCD_CS_PORT, LCD_CS_PIN);
 
     lcd_spi_setup();
