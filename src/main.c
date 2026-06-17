@@ -72,11 +72,11 @@ void main(void){
         lcd_draw_line(160, 20, 160, 24, 0xe8c3);
         lcd_draw_scale(0, 10, 320, 9, freq);
 
-        gpio_set(GPIOA, GPIO4);
+        //gpio_set(GPIOA, GPIO4);
         
         lcd_draw_freq_main(freq);
 
-        gpio_clear(GPIOA, GPIO4);
+        //gpio_clear(GPIOA, GPIO4);
 
     }
 

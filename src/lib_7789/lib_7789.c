@@ -362,6 +362,8 @@ void lcd_draw_bmp(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t* bm
 void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t freq)
 {
 
+    gpio_set(GPIOA, GPIO4);
+
     uint16_t x1 = x_crtd(x);
     uint16_t y1 = y_crtd(y);
     uint16_t x2 = x1 + dx-1;
@@ -375,17 +377,41 @@ void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t f
     uint32_t packet_length = dx * dy;
     uint32_t packet_cnt = 0;
 
-    for(uint8_t line_cnt = 0; line_cnt < 9; line_cnt++)
+    uint16_t buffer_fine[320];
+    uint16_t buffer_coarse[320];
+
+    //for(uint8_t line_cnt = 0; line_cnt < dy; line_cnt++)
+    //{
+    //    for(uint16_t pixel_cnt = 0; pixel_cnt < 320; pixel_cnt++)
+    //    {
+    //        if(line_cnt < 6 && (offset_1+pixel_cnt) % 8 == 0) lcd_buffer[packet_cnt] = 0x055f;
+    //        else
+    //        if((offset_1+pixel_cnt) % 40 == 0) lcd_buffer[packet_cnt] = 0x055f;
+    //        else lcd_buffer[packet_cnt] = 0x0025;
+    //        packet_cnt++;
+    //    }
+    //}
+
+    for(uint16_t pixel_cnt = 0; pixel_cnt < 320; pixel_cnt++)
+    {
+        if((offset_1+pixel_cnt) % 8 == 0) buffer_fine[pixel_cnt] = 0x055f;
+        else buffer_fine[pixel_cnt] = 0x0025;
+
+        if((offset_1+pixel_cnt) % 40 == 0) buffer_coarse[pixel_cnt] = 0x055f;
+        else buffer_coarse[pixel_cnt] = 0x0025;
+    }
+
+    for(uint8_t line_cnt = 0; line_cnt < dy; line_cnt++)
     {
         for(uint16_t pixel_cnt = 0; pixel_cnt < 320; pixel_cnt++)
         {
-            if(line_cnt < 6 && (offset_1+pixel_cnt) % 8 == 0) lcd_buffer[packet_cnt] = 0x055f;
-            else
-            if((offset_1+pixel_cnt) % 40 == 0) lcd_buffer[packet_cnt] = 0x055f;
-            else lcd_buffer[packet_cnt] = 0x0025;
+            if(line_cnt < 5) lcd_buffer[packet_cnt] = buffer_fine[pixel_cnt];
+            else lcd_buffer[packet_cnt] = buffer_coarse[pixel_cnt];
             packet_cnt++;
         }
     }
+
+    gpio_clear(GPIOA, GPIO4);
 
     lcd_send_cmd_8(0x2A);
     lcd_send_data_16(x1);
