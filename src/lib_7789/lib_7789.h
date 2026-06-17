@@ -12,6 +12,7 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* strin
 void lcd_fill_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t color);
 void lcd_draw_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint8_t thick, uint16_t color);
 void lcd_draw_line(uint16_t x1, uint16_t x2, uint16_t y1, uint16_t y2, uint16_t color);
+void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t freq);
 enum print_alignment {ALIGN_LEFT, ALIGN_CENTER, ALIGN_RIGHT};
 enum print_scale {SCALE_1 = 1, SCALE_2 = 2, SCALE_3 = 3, SCALE_4 = 4};
 

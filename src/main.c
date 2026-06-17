@@ -20,65 +20,6 @@ void encoder_timer_init(void)
     timer_enable_counter(TIM2);
 }
 
-void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t freq)
-{
-
-    uint16_t x1 = x_crtd(x);
-    uint16_t y1 = y_crtd(y);
-    uint16_t x2 = x1 + dx-1;
-    uint16_t y2 = y1 + dy-1;
-
-    uint16_t offset_1 = (freq/125)%320;
-    uint16_t offset_2 = ((freq/125)+80)%320;
-    uint16_t offset_3 = ((freq/125)+160)%320;
-    uint16_t offset_4 = ((freq/125)+240)%320;
-
-    lcd_send_cmd_8(0x2A);
-    lcd_send_data_16(x1);
-    lcd_send_data_16(x2);
-    lcd_send_cmd_8(0x2B);
-    lcd_send_data_16(y1);
-    lcd_send_data_16(y2);
-
-    lcd_send_cmd_8(0x2C);
-
-    for(uint8_t line_cnt = 0; line_cnt < 9; line_cnt++)
-    {
-        for(uint16_t pixel_cnt = 0; pixel_cnt < 320; pixel_cnt++)
-        {
-            if(line_cnt < 6 && (offset_1+pixel_cnt) % 8 == 0) lcd_send_data_16(0x055f);
-            else
-            if((offset_1+pixel_cnt) % 40 == 0) lcd_send_data_16(0x055f);
-            else lcd_send_data_16(0x0025);
-        }
-    }
-
-    uint16_t num_1_pos = 320-(offset_1 % 320);
-    uint16_t num_2_pos = 320-(offset_2 % 320);
-    uint16_t num_3_pos = 320-(offset_3 % 320);
-    uint16_t num_4_pos = 320-(offset_4 % 320);
-    
-    char num_1[11];
-    char num_2[11];
-    char num_3[11];
-    char num_4[11];
-
-    snprintf(num_1, 11, "   %d   ", (freq-offset_1*125)/1000+20);
-    snprintf(num_2, 11, "   %d   ", (freq-offset_2*125)/1000+20);
-    snprintf(num_3, 11, "   %d   ", (freq-offset_3*125)/1000+20);
-    snprintf(num_4, 11, "   %d   ", (freq-offset_4*125)/1000+20);
-
-    if(num_1_pos > 29 && num_1_pos < 291) lcd_print(num_1_pos, 25, SCALE_1, ALIGN_CENTER, num_1, 0x055F, 0x0025);
-    else                                  lcd_print(num_1_pos, 25, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
-    if(num_2_pos > 29 && num_2_pos < 291) lcd_print(num_2_pos, 25, SCALE_1, ALIGN_CENTER, num_2, 0x055F, 0x0025);
-    else                                  lcd_print(num_2_pos, 25, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
-    if(num_3_pos > 29 && num_3_pos < 291) lcd_print(num_3_pos, 25, SCALE_1, ALIGN_CENTER, num_3, 0x055F, 0x0025);
-    else                                  lcd_print(num_3_pos, 25, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
-    if(num_4_pos > 29 && num_4_pos < 291) lcd_print(num_4_pos, 25, SCALE_1, ALIGN_CENTER, num_4, 0x055F, 0x0025);
-    else                                  lcd_print(num_4_pos, 25, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
-
-}
-
 void lcd_draw_freq_main(uint32_t freq)
 {
     uint16_t freq_int = freq/1000;

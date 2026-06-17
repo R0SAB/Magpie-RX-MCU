@@ -12,6 +12,7 @@ const uint32_t LCD_DC_PORT_RCC;
 const uint32_t LCD_RESET_PORT_RCC;
 const uint32_t LCD_CS_PORT_RCC;
 
+static uint16_t lcd_buffer[8000];
 
 #if LCD_SPI == SPI1
     const uint32_t SPI_RCC = RCC_SPI1;
@@ -293,7 +294,6 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* strin
     }
 
     uint32_t packet_length = display_width * display_height;
-    static uint16_t packet[8000];
     uint32_t packet_cnt = 0;
 
     for(uint8_t v_cnt = 0; v_cnt < font_height; v_cnt++)    
@@ -308,8 +308,8 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* strin
                 {
                     for(uint8_t scale_h_cnt = 0; scale_h_cnt < scale; scale_h_cnt++)
                     {
-                        if((font_44780[char_addr][v_cnt] << shift_cnt) & 0b00010000) packet[packet_cnt] = font_color;
-                        else packet[packet_cnt] = bg_color;
+                        if((font_44780[char_addr][v_cnt] << shift_cnt) & 0b00010000) lcd_buffer[packet_cnt] = font_color;
+                        else lcd_buffer[packet_cnt] = bg_color;
                         packet_cnt++;
                     }
                 }
@@ -329,7 +329,7 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* strin
     spi_set_dff_16bit(LCD_SPI);
     gpio_set(LCD_DC_PORT, LCD_DC_PIN);
     dma_disable_channel(DMA1, DMA_CHANNEL3);
-    dma_set_memory_address(DMA1, DMA_CHANNEL3, (uint32_t)&packet[0]);
+    dma_set_memory_address(DMA1, DMA_CHANNEL3, (uint32_t)&lcd_buffer[0]);
     dma_set_number_of_data(DMA1, DMA_CHANNEL3, packet_length);
     dma_enable_channel(DMA1, DMA_CHANNEL3);
 
@@ -357,6 +357,75 @@ void lcd_draw_bmp(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t* bm
     }
 }
 
+void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t freq)
+{
+
+    uint16_t x1 = x_crtd(x);
+    uint16_t y1 = y_crtd(y);
+    uint16_t x2 = x1 + dx-1;
+    uint16_t y2 = y1 + dy-1;
+
+    uint16_t offset_1 = (freq/125)%320;
+    uint16_t offset_2 = ((freq/125)+80)%320;
+    uint16_t offset_3 = ((freq/125)+160)%320;
+    uint16_t offset_4 = ((freq/125)+240)%320;
+
+    uint32_t packet_length = dx * dy;
+    uint32_t packet_cnt = 0;
+
+    for(uint8_t line_cnt = 0; line_cnt < 9; line_cnt++)
+    {
+        for(uint16_t pixel_cnt = 0; pixel_cnt < 320; pixel_cnt++)
+        {
+            if(line_cnt < 6 && (offset_1+pixel_cnt) % 8 == 0) lcd_buffer[packet_cnt] = 0x055f;
+            else
+            if((offset_1+pixel_cnt) % 40 == 0) lcd_buffer[packet_cnt] = 0x055f;
+            else lcd_buffer[packet_cnt] = 0x0025;
+            packet_cnt++;
+        }
+    }
+
+    lcd_send_cmd_8(0x2A);
+    lcd_send_data_16(x1);
+    lcd_send_data_16(x2);
+    lcd_send_cmd_8(0x2B);
+    lcd_send_data_16(y1);
+    lcd_send_data_16(y2);
+
+    lcd_send_cmd_8(0x2C);
+
+    spi_set_dff_16bit(LCD_SPI);
+    gpio_set(LCD_DC_PORT, LCD_DC_PIN);
+    dma_disable_channel(DMA1, DMA_CHANNEL3);
+    dma_set_memory_address(DMA1, DMA_CHANNEL3, (uint32_t)&lcd_buffer[0]);
+    dma_set_number_of_data(DMA1, DMA_CHANNEL3, packet_length);
+    dma_enable_channel(DMA1, DMA_CHANNEL3);
+
+    uint16_t num_1_pos = 320-(offset_1 % 320);
+    uint16_t num_2_pos = 320-(offset_2 % 320);
+    uint16_t num_3_pos = 320-(offset_3 % 320);
+    uint16_t num_4_pos = 320-(offset_4 % 320);
+    
+    char num_1[11];
+    char num_2[11];
+    char num_3[11];
+    char num_4[11];
+
+    snprintf(num_1, 11, "   %d   ", (freq-offset_1*125)/1000+20);
+    snprintf(num_2, 11, "   %d   ", (freq-offset_2*125)/1000+20);
+    snprintf(num_3, 11, "   %d   ", (freq-offset_3*125)/1000+20);
+    snprintf(num_4, 11, "   %d   ", (freq-offset_4*125)/1000+20);
+
+    if(num_1_pos > 29 && num_1_pos < 291) lcd_print(num_1_pos, 25, SCALE_1, ALIGN_CENTER, num_1, 0x055F, 0x0025);
+    else                                  lcd_print(num_1_pos, 25, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
+    if(num_2_pos > 29 && num_2_pos < 291) lcd_print(num_2_pos, 25, SCALE_1, ALIGN_CENTER, num_2, 0x055F, 0x0025);
+    else                                  lcd_print(num_2_pos, 25, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
+    if(num_3_pos > 29 && num_3_pos < 291) lcd_print(num_3_pos, 25, SCALE_1, ALIGN_CENTER, num_3, 0x055F, 0x0025);
+    else                                  lcd_print(num_3_pos, 25, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
+    if(num_4_pos > 29 && num_4_pos < 291) lcd_print(num_4_pos, 25, SCALE_1, ALIGN_CENTER, num_4, 0x055F, 0x0025);
+    else                                  lcd_print(num_4_pos, 25, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
+
+}
 
 
 void lcd_init(uint8_t orientation) // https://github.com/russhughes/st7789_mpy/blob/master/README.md#madctl-constants
