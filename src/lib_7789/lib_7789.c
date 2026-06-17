@@ -362,8 +362,6 @@ void lcd_draw_bmp(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t* bm
 void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t freq)
 {
 
-    gpio_set(GPIOA, GPIO4);
-
     uint16_t x1 = x_crtd(x);
     uint16_t y1 = y_crtd(y);
     uint16_t x2 = x1 + dx-1;
@@ -401,6 +399,8 @@ void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t f
         else buffer_coarse[pixel_cnt] = 0x0025;
     }
 
+    gpio_set(GPIOA, GPIO4);
+/*
     for(uint8_t line_cnt = 0; line_cnt < dy; line_cnt++)
     {
         for(uint16_t pixel_cnt = 0; pixel_cnt < 320; pixel_cnt++)
@@ -410,6 +410,29 @@ void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t f
             packet_cnt++;
         }
     }
+*/
+// ############################# QWEN START ##############################
+    uint8_t fine_lines = (dy < 5) ? dy : 5; // Защита, если dy < 5
+    uint8_t coarse_lines = dy - fine_lines;
+
+    // 1. Копируем точные риски (до 5 строк)
+    for(uint8_t line_cnt = 0; line_cnt < fine_lines; line_cnt++)
+    {
+        for(uint16_t pixel_cnt = 0; pixel_cnt < 320; pixel_cnt++)
+        {
+            lcd_buffer[packet_cnt++] = buffer_fine[pixel_cnt];
+        }
+    }
+
+    // 2. Копируем грубые риски (остаток)
+    for(uint8_t line_cnt = 0; line_cnt < coarse_lines; line_cnt++)
+    {
+        for(uint16_t pixel_cnt = 0; pixel_cnt < 320; pixel_cnt++)
+        {
+            lcd_buffer[packet_cnt++] = buffer_coarse[pixel_cnt];
+        }
+    }
+// ############################## QWEN END ################################
 
     gpio_clear(GPIOA, GPIO4);
 
