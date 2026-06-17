@@ -45,7 +45,7 @@ void lcd_dma_setup()
 void main(void){
     rcc_clock_setup_in_hse_8mhz_out_72mhz();
 
-    lcd_init(5);
+    lcd_init(6);
 
     lcd_dma_setup();
 
