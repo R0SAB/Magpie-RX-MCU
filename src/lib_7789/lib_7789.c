@@ -107,35 +107,34 @@ void lcd_reset(void)
 void lcd_send_cmd_8(uint8_t cmd)
 {
     while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
+    gpio_clear(LCD_CS_PORT, LCD_CS_PIN);
     spi_set_dff_8bit(LCD_SPI);
     gpio_clear(LCD_DC_PORT, LCD_DC_PIN);
-    spi_send(LCD_SPI, cmd);
+    spi_write(LCD_SPI, cmd);
+    while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
+    gpio_set(LCD_CS_PORT, LCD_CS_PIN);
 }
 
 void lcd_send_data_8(uint8_t data)
 {
     while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
+    gpio_clear(LCD_CS_PORT, LCD_CS_PIN);
     spi_set_dff_8bit(LCD_SPI);
     gpio_set(LCD_DC_PORT, LCD_DC_PIN);
-    spi_send(LCD_SPI, data);
+    spi_write(LCD_SPI, data);
+    while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
+    gpio_set(LCD_CS_PORT, LCD_CS_PIN);
 }
 
 void lcd_send_data_16(uint16_t data)
 {
     while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
+    gpio_clear(LCD_CS_PORT, LCD_CS_PIN);
     spi_set_dff_16bit(LCD_SPI);
     gpio_set(LCD_DC_PORT, LCD_DC_PIN);
-    spi_send(LCD_SPI, data);
-}
-
-void lcd_send_packet_16(uint16_t* data, uint32_t length)
-{
+    spi_write(LCD_SPI, data);
     while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
-    //while(SPI_SR(LCD_SPI) & SPI_SR_BSY);
-    spi_set_dff_16bit(LCD_SPI);
-    gpio_set(LCD_DC_PORT, LCD_DC_PIN);
-
-    for(uint32_t a = 0; a < length; a++) spi_send(LCD_SPI, data[a]);
+    gpio_set(LCD_CS_PORT, LCD_CS_PIN);
 }
 
 void lcd_dma_setup()
@@ -154,6 +153,7 @@ void lcd_dma_send(uint32_t length)
 {
     spi_set_dff_16bit(LCD_SPI);
     gpio_set(LCD_DC_PORT, LCD_DC_PIN);
+    gpio_clear(LCD_CS_PORT, LCD_CS_PIN);
     dma_disable_channel(DMA1, DMA_CHANNEL3);
     dma_set_memory_address(DMA1, DMA_CHANNEL3, (uint32_t)&lcd_buffer[0]);
     dma_set_number_of_data(DMA1, DMA_CHANNEL3, length);
