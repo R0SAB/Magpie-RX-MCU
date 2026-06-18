@@ -20,6 +20,15 @@ void encoder_timer_init(void)
     timer_enable_counter(TIM2);
 }
 
+int16_t encoder_delta(void)
+{
+    static int16_t encoder_prev;
+    int16_t encoder_curr = timer_get_counter(TIM2);
+    int16_t encoder_delta = encoder_curr - encoder_prev;
+    encoder_prev = encoder_curr;
+    return encoder_delta;
+}
+
 void lcd_draw_freq_main(uint32_t freq)
 {
     uint16_t freq_int = freq/1000;
@@ -51,10 +60,8 @@ void main(void){
 
     while(1)
     {
-        encoder_curr = timer_get_counter(TIM2);
-        encoder_diff = encoder_curr - encoder_prev;
-        encoder_prev = encoder_curr;
-        freq = freq + encoder_diff*5;
+
+        freq = freq + encoder_delta()*5;
 
         lcd_draw_line(160, 5, 160, 9, 0xe8c3);
         lcd_draw_line(160, 20, 160, 24, 0xe8c3);
