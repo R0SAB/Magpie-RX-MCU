@@ -409,7 +409,7 @@ void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t f
         else buffer_coarse[pixel_cnt] = 0x0025;
     }
 
-    gpio_set(GPIOA, GPIO4);
+    //gpio_set(GPIOA, GPIO4);
 /*
     for(uint8_t line_cnt = 0; line_cnt < dy; line_cnt++)
     {
@@ -444,7 +444,7 @@ void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t f
     }
 // ############################## QWEN END ################################
 
-    gpio_clear(GPIOA, GPIO4);
+    //gpio_clear(GPIOA, GPIO4);
 
     lcd_send_cmd_8(0x2A);
     lcd_send_data_16(x1);

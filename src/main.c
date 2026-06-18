@@ -39,6 +39,22 @@ void lcd_draw_freq_main(uint32_t freq)
     lcd_print(161, 50, SCALE_3, ALIGN_CENTER, print_buffer, 0x055F, 0x0025);
 }
 
+void fpga_spi_send(uint32_t freq_word)
+{
+        while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
+        gpio_clear(GPIOB, GPIO11);
+
+        for(int i = 0; i < 4; i++)
+        {
+            while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
+            spi_set_dff_8bit(LCD_SPI);
+            gpio_set(LCD_DC_PORT, LCD_DC_PIN);
+            spi_write(LCD_SPI, (freq_word >> (8*(3-i))) & 0xFF);
+        }
+
+        gpio_set(GPIOB, GPIO11);
+}
+
 void main(void){
     rcc_clock_setup_in_hse_8mhz_out_72mhz();
 
@@ -54,9 +70,12 @@ void main(void){
     uint16_t encoder_prev = 0;
     int16_t encoder_diff = 0;
 
-    gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO4);
+    gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO4); // Probe pin
+
+    gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO11); // FPGA CS pin
 
     uint32_t freq = 10000000;
+    uint64_t ph_acc_fs = (uint64_t) 1 << 32;
 
     while(1)
     {
@@ -70,6 +89,16 @@ void main(void){
         //gpio_set(GPIOA, GPIO4);
         
         lcd_draw_freq_main(freq);
+
+        gpio_set(GPIOA, GPIO4);
+
+        double freq_word_float = (double)ph_acc_fs/64.8e6*(double)freq;
+
+        uint32_t freq_word = (uint32_t)freq_word_float;
+
+        gpio_clear(GPIOA, GPIO4);
+
+        fpga_spi_send(freq_word);
 
         //gpio_clear(GPIOA, GPIO4);
 
