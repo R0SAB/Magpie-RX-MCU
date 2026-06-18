@@ -42,16 +42,17 @@ void lcd_draw_freq_main(uint32_t freq)
 void fpga_spi_send(uint32_t freq_word)
 {
         while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
+        gpio_set(LCD_CS_PORT, LCD_CS_PIN);
+        spi_set_dff_8bit(LCD_SPI);
         gpio_clear(GPIOB, GPIO11);
 
         for(int i = 0; i < 4; i++)
         {
             while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
-            spi_set_dff_8bit(LCD_SPI);
-            gpio_set(LCD_DC_PORT, LCD_DC_PIN);
             spi_write(LCD_SPI, (freq_word >> (8*(3-i))) & 0xFF);
         }
 
+        while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
         gpio_set(GPIOB, GPIO11);
 }
 
@@ -97,6 +98,8 @@ void main(void){
         uint32_t freq_word = (uint32_t)freq_word_float;
 
         gpio_clear(GPIOA, GPIO4);
+
+        
 
         fpga_spi_send(freq_word);
 
