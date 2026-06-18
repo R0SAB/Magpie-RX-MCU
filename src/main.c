@@ -7,7 +7,6 @@
 #include <libopencm3/stm32/spi.h>
 #include <stdio.h>
 
-
 void encoder_timer_init(void)
 {
     rcc_periph_clock_enable(RCC_GPIOA);
@@ -39,21 +38,27 @@ void lcd_draw_freq_main(uint32_t freq)
     lcd_print(161, 50, SCALE_3, ALIGN_CENTER, print_buffer, 0x055F, 0x0025);
 }
 
-void fpga_spi_send(uint32_t freq_word)
+uint8_t fpga_spi_send(uint32_t freq_word)
 {
         while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
         gpio_set(LCD_CS_PORT, LCD_CS_PIN);
         spi_set_dff_8bit(LCD_SPI);
         gpio_clear(GPIOB, GPIO11);
 
+        uint8_t rx_byte = 0;
+
         for(int i = 0; i < 4; i++)
         {
             while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
-            spi_write(LCD_SPI, (freq_word >> (8*(3-i))) & 0xFF);
+            //if(i == 1) rx_byte = spi_read(LCD_SPI);
+            if(i == 0) rx_byte = spi_xfer(LCD_SPI, (freq_word >> (8*(3-i))) & 0xFF);
+            else spi_write(LCD_SPI, (freq_word >> (8*(3-i))) & 0xFF);
         }
 
         while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
         gpio_set(GPIOB, GPIO11);
+
+        return rx_byte;
 }
 
 void main(void){
@@ -67,16 +72,24 @@ void main(void){
  
     lcd_fill_rect(0,0,320,170,0x0025);
 
-    uint16_t encoder_curr = 0;
-    uint16_t encoder_prev = 0;
-    int16_t encoder_diff = 0;
-
     gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO4); // Probe pin
 
     gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO11); // FPGA CS pin
 
     uint32_t freq = 10000000;
     uint64_t ph_acc_fs = (uint64_t) 1 << 32;
+
+    const char* s_meter_nums[9] = {" ", "1", "3", "5", "7", "9", "+12", "+24", "+36"};
+    uint16_t nums_x = 20;
+    uint16_t nums_x_step = 32;
+    uint16_t nums_y = 140;
+
+    lcd_print(nums_x + nums_x_step/2, nums_y, SCALE_1, ALIGN_CENTER, "0", 0x055f, 0x0025);
+
+    for(uint8_t i = 0; i < 9; i++)
+    {
+        lcd_print(nums_x + nums_x_step*i, nums_y, SCALE_1, ALIGN_CENTER, s_meter_nums[i], 0x055f, 0x0025);
+    }
 
     while(1)
     {
@@ -101,8 +114,36 @@ void main(void){
 
         
 
-        fpga_spi_send(freq_word);
+        uint8_t s_value = fpga_spi_send(freq_word);
+        char s_value_string[16];
 
+        if(s_value < 10)
+        {
+            snprintf(s_value_string, 16, "S%d   ", s_value);
+        }
+        else
+        {
+            switch(s_value)
+            {
+                case 10: snprintf(s_value_string, 16, "S+6  "); break;
+                case 11: snprintf(s_value_string, 16, "S+12 "); break;
+                case 12: snprintf(s_value_string, 16, "S+18 "); break;
+                case 13: snprintf(s_value_string, 16, "S+24 "); break;
+                case 14: snprintf(s_value_string, 16, "S+30 "); break;
+                case 15: snprintf(s_value_string, 16, "S+36 "); break;
+                default: snprintf(s_value_string, 16, "error");
+            }
+        }
+
+        lcd_print(40, 100, SCALE_2, ALIGN_LEFT, s_value_string, 0x055f, 0x0025);
+
+        uint8_t s_value_prev;
+        if(s_value_prev != s_value)
+        {
+        lcd_fill_rect(20+nums_x_step/2, 153, 288, 3, 0x0025);
+        lcd_fill_rect(20+nums_x_step/2, 153, nums_x_step/2*s_value, 3, 0x055f);
+        }
+        s_value_prev = s_value;
         //gpio_clear(GPIOA, GPIO4);
 
     }
