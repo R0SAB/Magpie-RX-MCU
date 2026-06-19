@@ -114,7 +114,7 @@ void main(void){
 
         
 
-        uint8_t s_value = fpga_spi_send(freq_word);
+        volatile uint8_t s_value = fpga_spi_send(freq_word);
         char s_value_string[16];
 
         if(s_value < 10)
@@ -137,11 +137,13 @@ void main(void){
 
         lcd_print(40, 100, SCALE_2, ALIGN_LEFT, s_value_string, 0x055f, 0x0025);
 
+        uint16_t s_pixels = (nums_x_step/2)*s_value;
+
         uint8_t s_value_prev;
         if(s_value_prev != s_value)
         {
-        lcd_fill_rect(20+nums_x_step/2, 153, 288, 3, 0x0025);
-        lcd_fill_rect(20+nums_x_step/2, 153, nums_x_step/2*s_value, 3, 0x055f);
+        lcd_fill_rect(20+nums_x_step/2, 153, 240, 3, 0x3025);
+        lcd_fill_rect(20+nums_x_step/2, 153, s_pixels+1, 3, 0x055f);
         }
         s_value_prev = s_value;
         //gpio_clear(GPIOA, GPIO4);

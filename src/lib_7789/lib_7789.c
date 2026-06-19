@@ -4,6 +4,7 @@
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/spi.h>
 #include <libopencm3/stm32/dma.h>
+#include <libopencm3/cm3/nvic.h>
 #include <stdio.h>
 
 const uint32_t SPI_RCC;
@@ -15,6 +16,8 @@ const uint32_t LCD_CS_PORT_RCC;
 
 static uint16_t lcd_buffer[8000];
 static uint8_t font_ram[91][8];
+static uint16_t color_static;
+bool dma_busy;
 
 #if LCD_SPI == SPI1
     const uint32_t SPI_RCC = RCC_SPI1;
@@ -147,17 +150,51 @@ void lcd_dma_setup()
     dma_set_peripheral_size(DMA1, DMA_CHANNEL3, DMA_CCR_PSIZE_16BIT);
     dma_set_read_from_memory(DMA1, DMA_CHANNEL3);
     dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL3);
+    dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL3);
+
+    nvic_enable_irq(NVIC_DMA1_CHANNEL3_IRQ);
+    dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL3);
+    dma_busy = false;
+}
+
+void dma1_channel3_isr(void)
+{
+    if(dma_get_interrupt_flag(DMA1, DMA_CHANNEL3, DMA_TCIF) == true)
+    {
+        dma_disable_channel(DMA1, DMA_CHANNEL3);
+        dma_clear_interrupt_flags(DMA1, DMA_CHANNEL3, DMA_TCIF);
+        dma_busy = false;
+    }
 }
 
 void lcd_dma_send(uint32_t length)
 {
+    while(dma_busy == true){}
     spi_set_dff_16bit(LCD_SPI);
     gpio_set(LCD_DC_PORT, LCD_DC_PIN);
     gpio_clear(LCD_CS_PORT, LCD_CS_PIN);
-    dma_disable_channel(DMA1, DMA_CHANNEL3);
+    //dma_disable_channel(DMA1, DMA_CHANNEL3);
+    dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL3);
     dma_set_memory_address(DMA1, DMA_CHANNEL3, (uint32_t)&lcd_buffer[0]);
     dma_set_number_of_data(DMA1, DMA_CHANNEL3, length);
+    dma_busy = true;
     dma_enable_channel(DMA1, DMA_CHANNEL3);
+}
+
+void lcd_dma_fill(uint16_t length)
+{
+    while(dma_busy == true){}
+    spi_set_dff_16bit(LCD_SPI);
+    gpio_set(LCD_DC_PORT, LCD_DC_PIN);
+    gpio_clear(LCD_CS_PORT, LCD_CS_PIN);
+    //dma_disable_channel(DMA1, DMA_CHANNEL3);
+    dma_disable_memory_increment_mode(DMA1, DMA_CHANNEL3);
+    dma_set_memory_address(DMA1, DMA_CHANNEL3, (uint32_t)&color_static);
+    dma_set_number_of_data(DMA1, DMA_CHANNEL3, length);
+    dma_busy = true;
+    dma_enable_channel(DMA1, DMA_CHANNEL3);
+
+
 }
 
 void lcd_fill_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t color)
@@ -167,22 +204,18 @@ void lcd_fill_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t co
     uint16_t x2 = x1 + dx-1;
     uint16_t y2 = y1 + dy-1;
 
+    uint16_t packet_length = dx*dy;
+    color_static = color;
+
     lcd_send_cmd_8(0x2A);
     lcd_send_data_16(x1);
     lcd_send_data_16(x2);
     lcd_send_cmd_8(0x2B);
     lcd_send_data_16(y1);
     lcd_send_data_16(y2);
-
-    uint32_t pixel_cnt = 0;
-
     lcd_send_cmd_8(0x2C);
 
-    while(pixel_cnt < (dx*dy))
-    {
-        pixel_cnt++;
-        lcd_send_data_16(color);
-    };
+    lcd_dma_fill(packet_length);
 }
 
 void lcd_draw_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint8_t thick, uint16_t color)
