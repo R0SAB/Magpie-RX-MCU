@@ -142,8 +142,9 @@ void main(void){
         uint8_t s_value_prev;
         if(s_value_prev != s_value)
         {
-        lcd_fill_rect(20+nums_x_step/2, 153, 240, 3, 0x3025);
-        lcd_fill_rect(20+nums_x_step/2, 153, s_pixels+1, 3, 0x055f);
+        lcd_fill_rect(20+nums_x_step/2, 153, 240, 3, 0x0025);
+        
+        lcd_fill_rect(20+nums_x_step/2, 153, s_pixels, 3, 0x055f);
         }
         s_value_prev = s_value;
         //gpio_clear(GPIOA, GPIO4);

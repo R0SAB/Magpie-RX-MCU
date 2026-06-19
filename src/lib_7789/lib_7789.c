@@ -16,8 +16,8 @@ const uint32_t LCD_CS_PORT_RCC;
 
 static uint16_t lcd_buffer[8000];
 static uint8_t font_ram[91][8];
-static uint16_t color_static;
-bool dma_busy;
+volatile uint16_t color_static;
+volatile bool dma_busy;
 
 #if LCD_SPI == SPI1
     const uint32_t SPI_RCC = RCC_SPI1;
@@ -149,8 +149,6 @@ void lcd_dma_setup()
     dma_set_memory_size(DMA1, DMA_CHANNEL3, DMA_CCR_MSIZE_16BIT);
     dma_set_peripheral_size(DMA1, DMA_CHANNEL3, DMA_CCR_PSIZE_16BIT);
     dma_set_read_from_memory(DMA1, DMA_CHANNEL3);
-    dma_enable_memory_increment_mode(DMA1, DMA_CHANNEL3);
-    dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL3);
 
     nvic_enable_irq(NVIC_DMA1_CHANNEL3_IRQ);
     dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL3);
@@ -159,9 +157,9 @@ void lcd_dma_setup()
 
 void dma1_channel3_isr(void)
 {
+    dma_disable_channel(DMA1, DMA_CHANNEL3);
     if(dma_get_interrupt_flag(DMA1, DMA_CHANNEL3, DMA_TCIF) == true)
     {
-        dma_disable_channel(DMA1, DMA_CHANNEL3);
         dma_clear_interrupt_flags(DMA1, DMA_CHANNEL3, DMA_TCIF);
         dma_busy = false;
     }
@@ -199,23 +197,27 @@ void lcd_dma_fill(uint16_t length)
 
 void lcd_fill_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t color)
 {
-    uint16_t x1 = x_crtd(x);
-    uint16_t y1 = y_crtd(y);
-    uint16_t x2 = x1 + dx-1;
-    uint16_t y2 = y1 + dy-1;
+    if(dx > 0 && dy > 0)
+    {
+        uint16_t x1 = x_crtd(x);
+        uint16_t y1 = y_crtd(y);
+        uint16_t x2 = x1 + dx-1;
+        uint16_t y2 = y1 + dy-1;
 
-    uint16_t packet_length = dx*dy;
-    color_static = color;
+        uint16_t packet_length = dx*dy;
 
-    lcd_send_cmd_8(0x2A);
-    lcd_send_data_16(x1);
-    lcd_send_data_16(x2);
-    lcd_send_cmd_8(0x2B);
-    lcd_send_data_16(y1);
-    lcd_send_data_16(y2);
-    lcd_send_cmd_8(0x2C);
+        lcd_send_cmd_8(0x2A);
+        lcd_send_data_16(x1);
+        lcd_send_data_16(x2);
+        lcd_send_cmd_8(0x2B);
+        lcd_send_data_16(y1);
+        lcd_send_data_16(y2);
+        lcd_send_cmd_8(0x2C);
 
-    lcd_dma_fill(packet_length);
+        color_static = color;       // Change color ONLY when DMA frees SPI and new coords can be transferred
+
+        lcd_dma_fill(packet_length);
+    }
 }
 
 void lcd_draw_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint8_t thick, uint16_t color)
