@@ -14,6 +14,7 @@ static uint8_t modulation;                  // Modulation state
 enum modulations {LSB, USB, AM};
 static uint8_t bw;
 enum bandwidths {b4K8, b2K8};
+enum button_states {BTN_IDL, BTN_PRS, BTN_RLS, BTN_HLD}; // Idle, Pressed, Released, Held
 
 void encoder_timer_init(void)
 {
@@ -25,6 +26,29 @@ void encoder_timer_init(void)
     timer_set_prescaler(TIM2, 0);
     //timer_set_period(TIM2, 2560);
     timer_enable_counter(TIM2);
+}
+
+void buttons_setup(void)
+{
+    gpio_set_mode(GPIOB, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO9); // +1M
+    gpio_set(GPIOB, GPIO9);
+    gpio_set_mode(GPIOB, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO8); // -1M
+    gpio_set(GPIOB, GPIO8);
+    gpio_set_mode(GPIOB, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO7); // +100k
+    gpio_set(GPIOB, GPIO7);
+    gpio_set_mode(GPIOB, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO6); // -100k
+    gpio_set(GPIOB, GPIO6);
+    gpio_set_mode(GPIOB, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO5); // BW
+    gpio_set(GPIOB, GPIO5);
+    gpio_set_mode(GPIOB, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO4); // MOD
+    gpio_set(GPIOB, GPIO4);
+    gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO15); // ATT
+    gpio_set(GPIOA, GPIO15);
+}
+
+bool plus_100k_pressed()
+{
+
 }
 
 int16_t encoder_delta(void)
@@ -130,6 +154,8 @@ void main(void){
     lcd_init(6);
     lcd_dma_setup();
     encoder_timer_init();
+    buttons_setup();
+
     gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO11); // FPGA CS pin
     gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO4); // Probe pin
     
