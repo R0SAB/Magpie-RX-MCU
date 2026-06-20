@@ -6,6 +6,7 @@
 #include <libopencm3/stm32/dma.h>
 #include <libopencm3/stm32/spi.h>
 #include <stdio.h>
+#include "buttons.h"
 
 static uint32_t freq;                       // Tune frequency in Hz
 static uint8_t att;                   // Attenuator state
@@ -14,7 +15,6 @@ static uint8_t modulation;                  // Modulation state
 enum modulations {LSB, USB, AM};
 static uint8_t bw;
 enum bandwidths {b4K8, b2K8};
-enum button_states {BTN_IDL, BTN_PRS, BTN_RLS, BTN_HLD}; // Idle, Pressed, Released, Held
 
 void encoder_timer_init(void)
 {
@@ -27,42 +27,6 @@ void encoder_timer_init(void)
     //timer_set_period(TIM2, 2560);
     timer_enable_counter(TIM2);
 }
-
-#define P_100K_PORT GPIOB
-#define P_100K_PIN GPIO9
-#define M_100K_PORT GPIOB
-#define M_100K_PIN GPIO8
-#define P_1M_PORT GPIOB
-#define P_1M_PIN GPIO7
-#define M_1M_PORT GPIOB
-#define M_1M_PIN GPIO6
-#define BW_PORT GPIOB
-#define BW_PIN GPIO5
-#define MOD_PORT GPIOB
-#define MOD_PIN GPIO4
-#define ATT_PORT GPIOA
-#define ATT_PIN GPIO15
-
-
-void buttons_setup(void)
-{
-    gpio_set_mode(P_100K_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, P_100K_PIN); // +1M
-    gpio_set(P_100K_PORT, P_100K_PIN);
-    gpio_set_mode(M_100K_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, M_100K_PIN); // -1M
-    gpio_set(M_100K_PORT, M_100K_PIN);
-    gpio_set_mode(P_1M_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, P_1M_PIN); // +100k
-    gpio_set(P_1M_PORT, P_1M_PIN);
-    gpio_set_mode(M_1M_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, M_1M_PIN); // -100k
-    gpio_set(M_1M_PORT, M_1M_PIN);
-    gpio_set_mode(BW_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, BW_PIN); // BW
-    gpio_set(BW_PORT, BW_PIN);
-    gpio_set_mode(MOD_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, MOD_PIN); // MOD
-    gpio_set(MOD_PORT, MOD_PIN);
-    gpio_set_mode(ATT_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, ATT_PIN); // ATT
-    gpio_set(ATT_PORT, ATT_PIN);
-}
-
-
 
 int16_t encoder_delta(void)
 {
@@ -191,7 +155,33 @@ void main(void){
         lcd_draw_line(160, 20, 160, 24, 0xe8c3);
         lcd_draw_scale(0, 10, 320, 9, freq);
 
-        //gpio_set(GPIOA, GPIO4);
+        if(plus_100k_btn() == BTN_PRS)
+        {
+            uint32_t remainder = freq%100000;
+            if(remainder > 0) freq = freq + 100000-remainder;
+            else freq = freq + 100000;
+        }
+
+        if(minus_100k_btn() == BTN_PRS)
+        {
+            uint32_t remainder = freq%100000;
+            if(remainder > 0) freq = freq - remainder;
+            else freq = freq - 100000;
+        }
+
+        if(plus_1M_btn() == BTN_PRS)
+        {
+            uint32_t remainder = freq%1000000;
+            if(remainder > 0) freq = freq + 1000000-remainder;
+            else freq = freq + 1000000;
+        }
+
+        if(minus_1M_btn() == BTN_PRS)
+        {
+            uint32_t remainder = freq%1000000;
+            if(remainder > 0) freq = freq - remainder;
+            else freq = freq - 1000000;
+        }
         
         lcd_draw_freq_main(freq);
 
