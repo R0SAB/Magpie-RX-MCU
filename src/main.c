@@ -7,6 +7,14 @@
 #include <libopencm3/stm32/spi.h>
 #include <stdio.h>
 
+static uint32_t freq;                       // Tune frequency in Hz
+static uint8_t att;                   // Attenuator state
+enum att_values {ATT0, ATT12, ATT24};
+static uint8_t modulation;                  // Modulation state
+enum modulations {LSB, USB, AM};
+static uint8_t bw;
+enum bandwidths {b4K8, b2K8};
+
 void encoder_timer_init(void)
 {
     rcc_periph_clock_enable(RCC_GPIOA);
@@ -61,24 +69,8 @@ uint8_t fpga_spi_send(uint32_t freq_word)
         return rx_byte;
 }
 
-void main(void){
-    rcc_clock_setup_in_hse_8mhz_out_72mhz();
-
-    lcd_init(6);
-
-    lcd_dma_setup();
-
-    encoder_timer_init();
- 
-    lcd_fill_rect(0,0,320,170,0x0025);
-
-    gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO4); // Probe pin
-
-    gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO11); // FPGA CS pin
-
-    uint32_t freq = 10000000;
-    uint64_t ph_acc_fs = (uint64_t) 1 << 32;
-
+void s_meter_init_draw(void)
+{
     const char* s_meter_nums[9] = {" ", "1", "3", "5", "7", "9", "+12", "+24", "+36"};
     uint16_t nums_x = 20;
     uint16_t nums_x_step = 32;
@@ -90,32 +82,11 @@ void main(void){
     {
         lcd_print(nums_x + nums_x_step*i, nums_y, SCALE_1, ALIGN_CENTER, s_meter_nums[i], 0x055f, 0x0025);
     }
+}
 
-    while(1)
-    {
-
-        freq = freq + encoder_delta()*5;
-
-        lcd_draw_line(160, 5, 160, 9, 0xe8c3);
-        lcd_draw_line(160, 20, 160, 24, 0xe8c3);
-        lcd_draw_scale(0, 10, 320, 9, freq);
-
-        //gpio_set(GPIOA, GPIO4);
-        
-        lcd_draw_freq_main(freq);
-
-        gpio_set(GPIOA, GPIO4);
-
-        double freq_word_float = (double)ph_acc_fs/64.8e6*(double)freq;
-
-        uint32_t freq_word = (uint32_t)freq_word_float;
-
-        gpio_clear(GPIOA, GPIO4);
-
-        
-
-        volatile uint8_t s_value = fpga_spi_send(freq_word);
-        char s_value_string[16];
+void s_meter_print(uint8_t s_value)
+{
+    char s_value_string[16];
 
         if(s_value < 10)
         {
@@ -136,10 +107,15 @@ void main(void){
         }
 
         lcd_print(40, 100, SCALE_2, ALIGN_LEFT, s_value_string, 0x055f, 0x0025);
+}
 
-        uint16_t s_pixels = (nums_x_step/2)*s_value;
+void s_meter_bar_draw(uint8_t s_value)
+{
+    const uint8_t nums_x_step = 32;
 
-        uint8_t s_value_prev;
+    uint16_t s_pixels = (nums_x_step/2)*s_value;
+
+        static uint8_t s_value_prev;
         if(s_value_prev != s_value)
         {
         lcd_fill_rect(20+nums_x_step/2, 153, 240, 3, 0x0025);
@@ -147,7 +123,47 @@ void main(void){
         lcd_fill_rect(20+nums_x_step/2, 153, s_pixels, 3, 0x055f);
         }
         s_value_prev = s_value;
-        //gpio_clear(GPIOA, GPIO4);
+}
+
+void main(void){
+    rcc_clock_setup_in_hse_8mhz_out_72mhz();
+    lcd_init(6);
+    lcd_dma_setup();
+    encoder_timer_init();
+    gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO11); // FPGA CS pin
+    gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO4); // Probe pin
+    
+    lcd_fill_rect(0,0,320,170,0x0025);  // Main background
+    s_meter_init_draw();                // S meter scale numbers
+
+    
+
+    freq = 10000000;
+    uint64_t ph_acc_fs = (uint64_t) 1 << 32;
+
+    
+
+    while(1)
+    {
+
+        freq = freq + encoder_delta()*5;
+
+        lcd_draw_line(160, 5, 160, 9, 0xe8c3);
+        lcd_draw_line(160, 20, 160, 24, 0xe8c3);
+        lcd_draw_scale(0, 10, 320, 9, freq);
+
+        //gpio_set(GPIOA, GPIO4);
+        
+        lcd_draw_freq_main(freq);
+
+        double freq_word_float = (double)ph_acc_fs/64.8e6*(double)freq;
+        uint32_t freq_word = (uint32_t)freq_word_float;
+        
+        volatile uint8_t s_value = fpga_spi_send(freq_word);
+        
+        s_meter_print(s_value);
+        s_meter_bar_draw(s_value);
+
 
     }
 
