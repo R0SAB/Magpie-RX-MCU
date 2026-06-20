@@ -152,7 +152,7 @@ void main(void){
         freq = freq + encoder_delta()*5;
 
         lcd_draw_line(160, 5, 160, 9, 0xe8c3);
-        lcd_draw_line(160, 20, 160, 24, 0xe8c3);
+        lcd_draw_line(160, 19, 160, 23, 0xe8c3);
 
         if(plus_100k_btn() == BTN_PRS)
         {
