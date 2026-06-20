@@ -28,28 +28,41 @@ void encoder_timer_init(void)
     timer_enable_counter(TIM2);
 }
 
+#define P_100K_PORT GPIOB
+#define P_100K_PIN GPIO9
+#define M_100K_PORT GPIOB
+#define M_100K_PIN GPIO8
+#define P_1M_PORT GPIOB
+#define P_1M_PIN GPIO7
+#define M_1M_PORT GPIOB
+#define M_1M_PIN GPIO6
+#define BW_PORT GPIOB
+#define BW_PIN GPIO5
+#define MOD_PORT GPIOB
+#define MOD_PIN GPIO4
+#define ATT_PORT GPIOA
+#define ATT_PIN GPIO15
+
+
 void buttons_setup(void)
 {
-    gpio_set_mode(GPIOB, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO9); // +1M
-    gpio_set(GPIOB, GPIO9);
-    gpio_set_mode(GPIOB, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO8); // -1M
-    gpio_set(GPIOB, GPIO8);
-    gpio_set_mode(GPIOB, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO7); // +100k
-    gpio_set(GPIOB, GPIO7);
-    gpio_set_mode(GPIOB, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO6); // -100k
-    gpio_set(GPIOB, GPIO6);
-    gpio_set_mode(GPIOB, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO5); // BW
-    gpio_set(GPIOB, GPIO5);
-    gpio_set_mode(GPIOB, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO4); // MOD
-    gpio_set(GPIOB, GPIO4);
-    gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO15); // ATT
-    gpio_set(GPIOA, GPIO15);
+    gpio_set_mode(P_100K_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, P_100K_PIN); // +1M
+    gpio_set(P_100K_PORT, P_100K_PIN);
+    gpio_set_mode(M_100K_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, M_100K_PIN); // -1M
+    gpio_set(M_100K_PORT, M_100K_PIN);
+    gpio_set_mode(P_1M_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, P_1M_PIN); // +100k
+    gpio_set(P_1M_PORT, P_1M_PIN);
+    gpio_set_mode(M_1M_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, M_1M_PIN); // -100k
+    gpio_set(M_1M_PORT, M_1M_PIN);
+    gpio_set_mode(BW_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, BW_PIN); // BW
+    gpio_set(BW_PORT, BW_PIN);
+    gpio_set_mode(MOD_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, MOD_PIN); // MOD
+    gpio_set(MOD_PORT, MOD_PIN);
+    gpio_set_mode(ATT_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, ATT_PIN); // ATT
+    gpio_set(ATT_PORT, ATT_PIN);
 }
 
-bool plus_100k_pressed()
-{
 
-}
 
 int16_t encoder_delta(void)
 {
