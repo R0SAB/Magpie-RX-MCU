@@ -144,7 +144,7 @@ void main(void){
     freq = 10000000;
     uint64_t ph_acc_fs = (uint64_t) 1 << 32;
 
-    
+    bool flush_scale;
 
     while(1)
     {
@@ -153,13 +153,13 @@ void main(void){
 
         lcd_draw_line(160, 5, 160, 9, 0xe8c3);
         lcd_draw_line(160, 20, 160, 24, 0xe8c3);
-        lcd_draw_scale(0, 10, 320, 9, freq);
 
         if(plus_100k_btn() == BTN_PRS)
         {
             uint32_t remainder = freq%100000;
             if(remainder > 0) freq = freq + 100000-remainder;
             else freq = freq + 100000;
+            flush_scale = 1;
         }
 
         if(minus_100k_btn() == BTN_PRS)
@@ -167,6 +167,7 @@ void main(void){
             uint32_t remainder = freq%100000;
             if(remainder > 0) freq = freq - remainder;
             else freq = freq - 100000;
+            flush_scale = 1;
         }
 
         if(plus_1M_btn() == BTN_PRS)
@@ -174,6 +175,7 @@ void main(void){
             uint32_t remainder = freq%1000000;
             if(remainder > 0) freq = freq + 1000000-remainder;
             else freq = freq + 1000000;
+            flush_scale = 1;
         }
 
         if(minus_1M_btn() == BTN_PRS)
@@ -181,8 +183,12 @@ void main(void){
             uint32_t remainder = freq%1000000;
             if(remainder > 0) freq = freq - remainder;
             else freq = freq - 1000000;
+            flush_scale = 1;
         }
         
+        lcd_draw_scale(0, 10, 320, 9, freq, flush_scale);
+        flush_scale = 0;
+
         lcd_draw_freq_main(freq);
 
         double freq_word_float = (double)ph_acc_fs/64.8e6*(double)freq;
