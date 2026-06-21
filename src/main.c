@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "lib_7789.h"
 #include "bmp.h"
 #include <libopencm3/stm32/rcc.h>
@@ -5,7 +6,10 @@
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/stm32/dma.h>
 #include <libopencm3/stm32/spi.h>
-#include <stdio.h>
+#include <libopencm3/stm32/spi.h>
+#include <libopencm3/stm32/rtc.h>
+#include <libopencm3/stm32/pwr.h>
+#include <libopencm3/stm32/f1/bkp.h>
 #include "buttons.h"
 
 static uint32_t freq;                       // Tune frequency in Hz
@@ -117,7 +121,7 @@ void s_meter_bar_draw(uint8_t s_value)
     uint16_t s_pixels = (nums_x_step/2)*s_value;
 
         static uint8_t s_value_prev;
-        if(s_value_prev != s_value)
+        if(s_value_prev != s_value && s_value <= 15)
         {
         lcd_fill_rect(20+nums_x_step/2, 153, 240, 3, 0x0025);
         
@@ -139,9 +143,14 @@ void main(void){
     lcd_fill_rect(0,0,320,170,0x0025);  // Main background
     s_meter_init_draw();                // S meter scale numbers
 
+    rcc_periph_clock_enable(RCC_PWR);
+    rcc_periph_clock_enable(RCC_BKP);
     
+    freq = (uint32_t)(BKP_DR2 << 16) | (uint32_t)(BKP_DR1);
+    if(freq < 100000 || freq > 28000000) freq = 10000000;
 
-    freq = 10000000;
+    pwr_disable_backup_domain_write_protect();
+
     uint64_t ph_acc_fs = (uint64_t) 1 << 32;
 
     bool flush_scale;
@@ -199,7 +208,9 @@ void main(void){
         s_meter_print(s_value);
         s_meter_bar_draw(s_value);
 
-
+        BKP_DR1 = (uint16_t)(freq & 0xFFFF);
+        BKP_DR2 = (uint16_t)(freq >> 16);
+        
     }
 
 }
