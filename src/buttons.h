@@ -10,11 +10,11 @@
 #define M_1M_PORT GPIOB
 #define M_1M_PIN GPIO8
 #define BW_PORT GPIOB
-#define BW_PIN GPIO5
-#define MOD_PORT GPIOB
-#define MOD_PIN GPIO4
-#define ATT_PORT GPIOA
-#define ATT_PIN GPIO15
+#define BW_PIN GPIO4
+#define MOD_PORT GPIOA
+#define MOD_PIN GPIO15
+#define ATT_PORT GPIOB
+#define ATT_PIN GPIO5
 
 void buttons_setup(void);
 uint8_t plus_100k_btn(void);

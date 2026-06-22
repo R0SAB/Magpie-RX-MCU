@@ -12,13 +12,14 @@
 #include <libopencm3/stm32/f1/bkp.h>
 #include "buttons.h"
 
+static bool boot_flag = 1;
 static uint32_t freq;                       // Tune frequency in Hz
-static uint8_t att;                   // Attenuator state
+static uint8_t modulation;
+static uint8_t bandwidth;
+static uint8_t attenuator;
+enum modulations {MOD_LSB, MOD_USB, MOD_AM};
+enum bandwidths {BW_4K8, BW_2K8, BW_0K3};
 enum att_values {ATT0, ATT12, ATT24};
-static uint8_t modulation;                  // Modulation state
-enum modulations {LSB, USB, AM};
-static uint8_t bw;
-enum bandwidths {b4K8, b2K8};
 
 void encoder_timer_init(void)
 {
@@ -134,7 +135,77 @@ void s_meter_bar_draw(uint8_t s_value)
         s_value_prev = s_value;
 }
 
+void modes_routine(uint16_t color, uint16_t bg_color)
+{
+    if(mod_btn() == BTN_PRS)
+    {
+        switch(modulation)
+        {
+            case MOD_LSB: modulation = MOD_USB; break;
+            case MOD_USB: modulation =  MOD_AM; break;
+            case MOD_AM:  modulation = MOD_LSB; break;
+            default: modulation = MOD_LSB;
+        }
+
+        lcd_fill_rect(230, 89, 18, 2, (modulation == MOD_LSB) ? color:bg_color);   // MOD LSB
+        lcd_fill_rect(254, 89, 18, 2, (modulation == MOD_USB) ? color:bg_color);   // MOD USB
+        lcd_fill_rect(278, 89, 18, 2, (modulation == MOD_AM)  ? color:bg_color);   // MOD AM
+
+        BKP_DR3 = (uint16_t)modulation & 0x00FF;
+    }
+
+    if(bw_btn() == BTN_PRS)
+    {
+        switch(bandwidth)
+        {
+            case BW_4K8: bandwidth = BW_2K8; break;
+            case BW_2K8: bandwidth = BW_0K3; break;
+            case BW_0K3: bandwidth = BW_4K8; break;
+            default: bandwidth = BW_4K8;
+        }
+
+        lcd_fill_rect(230, 104, 18, 2, (bandwidth == BW_4K8) ? color:bg_color);   // MOD LSB
+        lcd_fill_rect(254, 104, 18, 2, (bandwidth == BW_2K8) ? color:bg_color);   // MOD USB
+        lcd_fill_rect(278, 104, 18, 2, (bandwidth == BW_0K3) ? color:bg_color);   // MOD AM
+
+        BKP_DR4 = (uint16_t)bandwidth & 0x00FF;
+    }
+
+    if(att_btn() == BTN_PRS)
+    {
+        switch(attenuator)
+        {
+            case ATT0:  attenuator = ATT12; break;
+            case ATT12: attenuator = ATT24; break;
+            case ATT24: attenuator =  ATT0; break;
+            default: attenuator = ATT0;
+        }
+
+        lcd_fill_rect(230, 119, 18, 2, (attenuator ==  ATT0) ? color:bg_color);   // MOD LSB
+        lcd_fill_rect(254, 119, 18, 2, (attenuator == ATT12) ? color:bg_color);   // MOD USB
+        lcd_fill_rect(278, 119, 18, 2, (attenuator == ATT24) ? color:bg_color);   // MOD AM
+
+        BKP_DR5 = (uint16_t)attenuator & 0x00FF;
+    }
+
+    if(boot_flag == 1)
+    {
+        lcd_fill_rect(230, 89, 18, 2, (modulation == MOD_LSB) ? color:bg_color);   // MOD LSB
+        lcd_fill_rect(254, 89, 18, 2, (modulation == MOD_USB) ? color:bg_color);   // MOD USB
+        lcd_fill_rect(278, 89, 18, 2, (modulation == MOD_AM)  ? color:bg_color);   // MOD AM
+
+        lcd_fill_rect(230, 104, 18, 2, (bandwidth == BW_4K8) ? color:bg_color);   // MOD LSB
+        lcd_fill_rect(254, 104, 18, 2, (bandwidth == BW_2K8) ? color:bg_color);   // MOD USB
+        lcd_fill_rect(278, 104, 18, 2, (bandwidth == BW_0K3) ? color:bg_color);   // MOD AM
+
+        lcd_fill_rect(230, 119, 18, 2, (attenuator ==  ATT0) ? color:bg_color);   // MOD LSB
+        lcd_fill_rect(254, 119, 18, 2, (attenuator == ATT12) ? color:bg_color);   // MOD USB
+        lcd_fill_rect(278, 119, 18, 2, (attenuator == ATT24) ? color:bg_color);   // MOD AM
+    }
+}
+
 void main(void){
+    
     rcc_clock_setup_in_hse_8mhz_out_72mhz();
     lcd_init(6);
     lcd_dma_setup();
@@ -153,11 +224,19 @@ void main(void){
     freq = (uint32_t)(BKP_DR2 << 16) | (uint32_t)(BKP_DR1);
     if(freq < 100000 || freq > 28000000) freq = 10000000;
 
+    modulation = BKP_DR3;
+    bandwidth = BKP_DR4;
+    attenuator = BKP_DR5;
+
     pwr_disable_backup_domain_write_protect();
 
     uint64_t ph_acc_fs = (uint64_t) 1 << 32;
 
     bool flush_scale;
+
+    modes_routine(0x3d40, 0x0025);
+
+    boot_flag = 0;
 
     while(1)
     {
@@ -230,6 +309,8 @@ void main(void){
         
         s_meter_print(s_value);
         s_meter_bar_draw(s_value);
+
+        modes_routine(0x3d40, 0x0025);
 
         BKP_DR1 = (uint16_t)(freq & 0xFFFF);
         BKP_DR2 = (uint16_t)(freq >> 16);
