@@ -159,6 +159,8 @@ void main(void){
     {
 
         freq = freq + encoder_delta()*5;
+        if(freq < 100000) freq = 100000;
+        if(freq > 28000000) freq = 28000000;
 
         lcd_draw_line(160, 5, 160, 9, 0xe8c3);
         lcd_draw_line(160, 19, 160, 23, 0xe8c3);
@@ -166,32 +168,49 @@ void main(void){
         if(plus_100k_btn() == BTN_PRS)
         {
             uint32_t remainder = freq%100000;
-            if(remainder > 0) freq = freq + 100000-remainder;
-            else freq = freq + 100000;
+            if(freq > 27900000) freq = 28000000;
+            else
+            {
+                if(remainder > 0) freq = freq + 100000-remainder;
+                else freq = freq + 100000;
+            }
             flush_scale = 1;
         }
 
         if(minus_100k_btn() == BTN_PRS)
         {
             uint32_t remainder = freq%100000;
-            if(remainder > 0) freq = freq - remainder;
-            else freq = freq - 100000;
+
+            if(freq < 200000) freq = 100000;
+            else
+            {
+                if(remainder > 0) freq = freq - remainder;
+                else freq = freq - 100000;
+            }
             flush_scale = 1;
         }
 
         if(plus_1M_btn() == BTN_PRS)
         {
             uint32_t remainder = freq%1000000;
-            if(remainder > 0) freq = freq + 1000000-remainder;
-            else freq = freq + 1000000;
+            if(freq > 27000000) freq = 28000000;
+            else
+            {
+                if(remainder > 0) freq = freq + 1000000-remainder;
+                else freq = freq + 1000000;
+            }
             flush_scale = 1;
         }
 
         if(minus_1M_btn() == BTN_PRS)
         {
             uint32_t remainder = freq%1000000;
-            if(remainder > 0) freq = freq - remainder;
-            else freq = freq - 1000000;
+            if(freq <= 1000000) freq = 100000;
+            else
+            {
+                if(remainder > 0) freq = freq - remainder;
+                else freq = freq - 1000000;
+            }
             flush_scale = 1;
         }
         
