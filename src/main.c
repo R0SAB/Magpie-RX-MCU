@@ -23,19 +23,19 @@ enum bandwidths {b4K8, b2K8};
 void encoder_timer_init(void)
 {
     rcc_periph_clock_enable(RCC_GPIOA);
-    gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, GPIO0 | GPIO1);
+    gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, GPIO8 | GPIO9);
 
-    rcc_periph_clock_enable(RCC_TIM2);
-    timer_slave_set_mode(TIM2, TIM_SMCR_SMS_EM3);
-    timer_set_prescaler(TIM2, 0);
-    //timer_set_period(TIM2, 2560);
-    timer_enable_counter(TIM2);
+    rcc_periph_clock_enable(RCC_TIM1);
+    timer_slave_set_mode(TIM1, TIM_SMCR_SMS_EM3);
+    timer_set_prescaler(TIM1, 0);
+    //timer_set_period(TIM1, 2560);
+    timer_enable_counter(TIM1);
 }
 
 int16_t encoder_delta(void)
 {
     static int16_t encoder_prev;
-    int16_t encoder_curr = timer_get_counter(TIM2);
+    int16_t encoder_curr = timer_get_counter(TIM1);
     int16_t encoder_delta = encoder_curr - encoder_prev;
     encoder_prev = encoder_curr;
     return encoder_delta;
