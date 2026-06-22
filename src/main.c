@@ -48,7 +48,7 @@ void lcd_draw_freq_main(uint32_t freq)
     uint16_t freq_frac_2 = (freq%100)/10;
     char print_buffer[64];
     snprintf(print_buffer, sizeof(print_buffer), " %d.%d%d kHz ", freq_int, freq_frac_1, freq_frac_2);
-    lcd_print(161, 50, SCALE_3, ALIGN_CENTER, print_buffer, 0x055F, 0x0025);
+    lcd_print(161, 40, SCALE_2, ALIGN_CENTER, print_buffer, 0x055F, 0x0025);
 }
 
 uint8_t fpga_spi_send(uint32_t freq_word)
@@ -87,6 +87,10 @@ void s_meter_init_draw(void)
     {
         lcd_print(nums_x + nums_x_step*i, nums_y, SCALE_1, ALIGN_CENTER, s_meter_nums[i], 0x055f, 0x0025);
     }
+
+    lcd_print(200, 80, SCALE_1, ALIGN_LEFT, "MOD: LSB USB  AM", 0x055f, 0x0025);
+    lcd_print(200, 95, SCALE_1, ALIGN_LEFT, " BW: 4.8 2.8 0.3", 0x055f, 0x0025);
+    lcd_print(200, 110, SCALE_1, ALIGN_LEFT, "ATT:  0  -12 -24", 0x055f, 0x0025);
 }
 
 void s_meter_print(uint8_t s_value)
@@ -111,7 +115,7 @@ void s_meter_print(uint8_t s_value)
             }
         }
 
-        lcd_print(40, 100, SCALE_2, ALIGN_LEFT, s_value_string, 0x055f, 0x0025);
+        lcd_print(30, 110, SCALE_2, ALIGN_LEFT, s_value_string, 0x055f, 0x0025);
 }
 
 void s_meter_bar_draw(uint8_t s_value)
@@ -162,8 +166,8 @@ void main(void){
         if(freq < 100000) freq = 100000;
         if(freq > 28000000) freq = 28000000;
 
-        lcd_draw_line(160, 5, 160, 9, 0xe8c3);
-        lcd_draw_line(160, 19, 160, 23, 0xe8c3);
+        lcd_draw_line(160, 0, 160, 4, 0xe8c3);
+        lcd_draw_line(160, 14, 160, 18, 0xe8c3);
 
         if(plus_100k_btn() == BTN_PRS)
         {
@@ -214,7 +218,7 @@ void main(void){
             flush_scale = 1;
         }
         
-        lcd_draw_scale(0, 10, 320, 9, freq, flush_scale);
+        lcd_draw_scale(0, 5, 320, 9, freq, flush_scale);
         flush_scale = 0;
 
         lcd_draw_freq_main(freq);

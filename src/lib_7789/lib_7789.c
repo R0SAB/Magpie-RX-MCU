@@ -508,16 +508,16 @@ void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t f
     snprintf(num_3, 11, "   %d   ", (freq-offset_3*125)/1000+20);
     snprintf(num_4, 11, "   %d   ", (freq-offset_4*125)/1000+20);
 
-    if(flush) lcd_fill_rect(0, 25, 320, 8, 0x0025);
+    if(flush) lcd_fill_rect(0, 20, 320, 8, 0x0025);
 
-    if(num_1_pos > 29 && num_1_pos < 291) lcd_print(num_1_pos, 25, SCALE_1, ALIGN_CENTER, num_1, 0x055F, 0x0025);
-    else                                  lcd_print(num_1_pos, 25, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
-    if(num_2_pos > 29 && num_2_pos < 291) lcd_print(num_2_pos, 25, SCALE_1, ALIGN_CENTER, num_2, 0x055F, 0x0025);
-    else                                  lcd_print(num_2_pos, 25, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
-    if(num_3_pos > 29 && num_3_pos < 291) lcd_print(num_3_pos, 25, SCALE_1, ALIGN_CENTER, num_3, 0x055F, 0x0025);
-    else                                  lcd_print(num_3_pos, 25, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
-    if(num_4_pos > 29 && num_4_pos < 291) lcd_print(num_4_pos, 25, SCALE_1, ALIGN_CENTER, num_4, 0x055F, 0x0025);
-    else                                  lcd_print(num_4_pos, 25, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
+    if(num_1_pos > 29 && num_1_pos < 291) lcd_print(num_1_pos, 20, SCALE_1, ALIGN_CENTER, num_1, 0x055F, 0x0025);
+    else                                  lcd_print(num_1_pos, 20, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
+    if(num_2_pos > 29 && num_2_pos < 291) lcd_print(num_2_pos, 20, SCALE_1, ALIGN_CENTER, num_2, 0x055F, 0x0025);
+    else                                  lcd_print(num_2_pos, 20, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
+    if(num_3_pos > 29 && num_3_pos < 291) lcd_print(num_3_pos, 20, SCALE_1, ALIGN_CENTER, num_3, 0x055F, 0x0025);
+    else                                  lcd_print(num_3_pos, 20, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
+    if(num_4_pos > 29 && num_4_pos < 291) lcd_print(num_4_pos, 20, SCALE_1, ALIGN_CENTER, num_4, 0x055F, 0x0025);
+    else                                  lcd_print(num_4_pos, 20, SCALE_1, ALIGN_CENTER, "         ", 0x055F, 0x0025);
 
 }
 
