@@ -13,6 +13,9 @@
 #include "buttons.h"
 #include <time.h>
 #include <stdlib.h>
+#include <libopencm3/stm32/flash.h>
+
+
 
 static bool boot_flag = 1;
 static uint32_t freq;                       // Tune frequency in Hz
@@ -343,6 +346,17 @@ void main(void){
 
 
     boot_flag = 0;
+
+    char time_buffer[32];
+    char date_buffer[32];
+    int32_t unix_time = 1782251068;
+    time_t t = (time_t)unix_time;
+    struct tm *tm_info = localtime(&t);
+    strftime(time_buffer, sizeof(time_buffer), "%H:%M:%S", tm_info);
+    strftime(date_buffer, sizeof(date_buffer), "%d-%m-%Y", tm_info);
+
+    lcd_print(20, 70, SCALE_1, ALIGN_LEFT, time_buffer, 0x055f, 0x0025);
+    lcd_print(20, 80, SCALE_1, ALIGN_LEFT, date_buffer, 0x055f, 0x0025);
 
     while(1)
     {
