@@ -11,15 +11,19 @@
 #include <libopencm3/stm32/pwr.h>
 #include <libopencm3/stm32/f1/bkp.h>
 #include "buttons.h"
+#include <time.h>
 
 static bool boot_flag = 1;
 static uint32_t freq;                       // Tune frequency in Hz
+static int32_t correction_ppb;
 static uint8_t modulation;
 static uint8_t bandwidth;
 static uint8_t attenuator;
+static uint8_t mode;
 enum modulations {MOD_LSB, MOD_USB, MOD_AM};
 enum bandwidths {BW_4K8, BW_2K8, BW_0K3};
 enum att_values {ATT0, ATT12, ATT24};
+enum modes {OPERATION, CORRECTION};
 
 void encoder_timer_init(void)
 {
@@ -47,9 +51,19 @@ void lcd_draw_freq_main(uint32_t freq)
     uint16_t freq_int = freq/1000;
     uint16_t freq_frac_1 = (freq%1000)/100;
     uint16_t freq_frac_2 = (freq%100)/10;
+    
+    static uint8_t mode_prev;
+
     char print_buffer[64];
-    snprintf(print_buffer, sizeof(print_buffer), " %d.%d%d kHz ", freq_int, freq_frac_1, freq_frac_2);
+    if(mode == OPERATION) snprintf(print_buffer, sizeof(print_buffer), " %d.%d%d kHz ", freq_int, freq_frac_1, freq_frac_2);
+    else
+    if(mode == CORRECTION) snprintf(print_buffer, sizeof(print_buffer), " Correction: %d ppb ", correction_ppb);
+
+    if(mode_prev == CORRECTION && mode == OPERATION) snprintf(print_buffer, sizeof(print_buffer), "                      ");
+
     lcd_print(161, 40, SCALE_2, ALIGN_CENTER, print_buffer, 0x055F, 0x0025);
+
+    mode_prev = mode;
 }
 
 uint8_t fpga_spi_send(uint32_t freq_word)
@@ -137,71 +151,146 @@ void s_meter_bar_draw(uint8_t s_value)
 
 void modes_routine(uint16_t color, uint16_t bg_color)
 {
-    if(mod_btn() == BTN_PRS)
+    
+    if(mode == OPERATION)
     {
-        switch(modulation)
+        if(mod_btn() == BTN_RLS && !boot_flag)
         {
-            case MOD_LSB: modulation = MOD_USB; break;
-            case MOD_USB: modulation =  MOD_AM; break;
-            case MOD_AM:  modulation = MOD_LSB; break;
-            default: modulation = MOD_LSB;
+            switch(modulation)
+            {
+                case MOD_LSB: modulation = MOD_USB; break;
+                case MOD_USB: modulation =  MOD_AM; break;
+                case MOD_AM:  modulation = MOD_LSB; break;
+                default: modulation = MOD_LSB;
+            }
+
+            lcd_fill_rect(230, 89, 18, 2, (modulation == MOD_LSB) ? color:bg_color);  // MOD LSB
+            lcd_fill_rect(254, 89, 18, 2, (modulation == MOD_USB) ? color:bg_color);  // MOD USB
+            lcd_fill_rect(278, 89, 18, 2, (modulation == MOD_AM)  ? color:bg_color);  // MOD AM
+
+            BKP_DR3 = (uint16_t)modulation & 0x00FF;
         }
 
-        lcd_fill_rect(230, 89, 18, 2, (modulation == MOD_LSB) ? color:bg_color);   // MOD LSB
-        lcd_fill_rect(254, 89, 18, 2, (modulation == MOD_USB) ? color:bg_color);   // MOD USB
-        lcd_fill_rect(278, 89, 18, 2, (modulation == MOD_AM)  ? color:bg_color);   // MOD AM
-
-        BKP_DR3 = (uint16_t)modulation & 0x00FF;
-    }
-
-    if(bw_btn() == BTN_PRS)
-    {
-        switch(bandwidth)
+        if(bw_btn() == BTN_RLS && !boot_flag)
         {
-            case BW_4K8: bandwidth = BW_2K8; break;
-            case BW_2K8: bandwidth = BW_0K3; break;
-            case BW_0K3: bandwidth = BW_4K8; break;
-            default: bandwidth = BW_4K8;
+            switch(bandwidth)
+            {
+                case BW_4K8: bandwidth = BW_2K8; break;
+                case BW_2K8: bandwidth = BW_0K3; break;
+                case BW_0K3: bandwidth = BW_4K8; break;
+                default: bandwidth = BW_4K8;
+            }
+
+            lcd_fill_rect(230, 104, 18, 2, (bandwidth == BW_4K8) ? color:bg_color);   // BW 4K8
+            lcd_fill_rect(254, 104, 18, 2, (bandwidth == BW_2K8) ? color:bg_color);   // BW 2k8
+            lcd_fill_rect(278, 104, 18, 2, (bandwidth == BW_0K3) ? color:bg_color);   // BW 0K3
+
+            BKP_DR4 = (uint16_t)bandwidth & 0x00FF;
         }
 
-        lcd_fill_rect(230, 104, 18, 2, (bandwidth == BW_4K8) ? color:bg_color);   // MOD LSB
-        lcd_fill_rect(254, 104, 18, 2, (bandwidth == BW_2K8) ? color:bg_color);   // MOD USB
-        lcd_fill_rect(278, 104, 18, 2, (bandwidth == BW_0K3) ? color:bg_color);   // MOD AM
-
-        BKP_DR4 = (uint16_t)bandwidth & 0x00FF;
-    }
-
-    if(att_btn() == BTN_PRS)
-    {
-        switch(attenuator)
+        if(att_btn() == BTN_RLS && !boot_flag)
         {
-            case ATT0:  attenuator = ATT12; break;
-            case ATT12: attenuator = ATT24; break;
-            case ATT24: attenuator =  ATT0; break;
-            default: attenuator = ATT0;
+            switch(attenuator)
+            {
+                case ATT0:  attenuator = ATT12; break;
+                case ATT12: attenuator = ATT24; break;
+                case ATT24: attenuator =  ATT0; break;
+                default: attenuator = ATT0;
+            }
+
+            lcd_fill_rect(230, 119, 18, 2, (attenuator ==  ATT0) ? color:bg_color);   // ATT 0
+            lcd_fill_rect(254, 119, 18, 2, (attenuator == ATT12) ? color:bg_color);   // ATT -12
+            lcd_fill_rect(278, 119, 18, 2, (attenuator == ATT24) ? color:bg_color);   // ATT -24
+
+            BKP_DR5 = (uint16_t)attenuator & 0x00FF;
         }
-
-        lcd_fill_rect(230, 119, 18, 2, (attenuator ==  ATT0) ? color:bg_color);   // MOD LSB
-        lcd_fill_rect(254, 119, 18, 2, (attenuator == ATT12) ? color:bg_color);   // MOD USB
-        lcd_fill_rect(278, 119, 18, 2, (attenuator == ATT24) ? color:bg_color);   // MOD AM
-
-        BKP_DR5 = (uint16_t)attenuator & 0x00FF;
     }
 
     if(boot_flag == 1)
     {
-        lcd_fill_rect(230, 89, 18, 2, (modulation == MOD_LSB) ? color:bg_color);   // MOD LSB
-        lcd_fill_rect(254, 89, 18, 2, (modulation == MOD_USB) ? color:bg_color);   // MOD USB
-        lcd_fill_rect(278, 89, 18, 2, (modulation == MOD_AM)  ? color:bg_color);   // MOD AM
+        modulation = BKP_DR3;
+        bandwidth = BKP_DR4;
+        attenuator = BKP_DR5;
 
-        lcd_fill_rect(230, 104, 18, 2, (bandwidth == BW_4K8) ? color:bg_color);   // MOD LSB
-        lcd_fill_rect(254, 104, 18, 2, (bandwidth == BW_2K8) ? color:bg_color);   // MOD USB
-        lcd_fill_rect(278, 104, 18, 2, (bandwidth == BW_0K3) ? color:bg_color);   // MOD AM
+        lcd_fill_rect(230, 89, 18, 2, (modulation == MOD_LSB) ? color:bg_color);  // MOD LSB
+        lcd_fill_rect(254, 89, 18, 2, (modulation == MOD_USB) ? color:bg_color);  // MOD USB
+        lcd_fill_rect(278, 89, 18, 2, (modulation == MOD_AM)  ? color:bg_color);  // MOD AM
 
-        lcd_fill_rect(230, 119, 18, 2, (attenuator ==  ATT0) ? color:bg_color);   // MOD LSB
-        lcd_fill_rect(254, 119, 18, 2, (attenuator == ATT12) ? color:bg_color);   // MOD USB
-        lcd_fill_rect(278, 119, 18, 2, (attenuator == ATT24) ? color:bg_color);   // MOD AM
+        lcd_fill_rect(230, 104, 18, 2, (bandwidth == BW_4K8) ? color:bg_color);   // BW 4K8
+        lcd_fill_rect(254, 104, 18, 2, (bandwidth == BW_2K8) ? color:bg_color);   // BW 2k8
+        lcd_fill_rect(278, 104, 18, 2, (bandwidth == BW_0K3) ? color:bg_color);   // BW 0K3
+
+        lcd_fill_rect(230, 119, 18, 2, (attenuator ==  ATT0) ? color:bg_color);   // ATT 0
+        lcd_fill_rect(254, 119, 18, 2, (attenuator == ATT12) ? color:bg_color);   // ATT -12
+        lcd_fill_rect(278, 119, 18, 2, (attenuator == ATT24) ? color:bg_color);   // ATT -24
     }
+
+    static uint16_t btn_delay;
+
+    if(mode == OPERATION && mod_btn() == BTN_HLD)
+    {
+        if(btn_delay < 200) btn_delay++;
+        if(btn_delay == 200) mode = CORRECTION;
+    }
+    else btn_delay = 0;
+
+    if(mode == CORRECTION && mod_btn() == BTN_RLS) mode = OPERATION;
+   
+}
+
+bool freq_buttons_polling(void)
+{
+    if(plus_100k_btn() == BTN_RLS && !boot_flag)
+    {
+        uint32_t remainder = freq%100000;
+        if(freq > 27900000) freq = 28000000;
+        else
+        {
+            if(remainder > 0) freq = freq + 100000-remainder;
+            else freq = freq + 100000;
+        }
+        return 1;
+    }
+
+    if(minus_100k_btn() == BTN_RLS && !boot_flag)
+    {
+        uint32_t remainder = freq%100000;
+
+        if(freq < 200000) freq = 100000;
+        else
+        {
+            if(remainder > 0) freq = freq - remainder;
+            else freq = freq - 100000;
+        }
+        return 1;
+    }
+
+    if(plus_1M_btn() == BTN_RLS && !boot_flag)
+    {
+        uint32_t remainder = freq%1000000;
+        if(freq > 27000000) freq = 28000000;
+        else
+        {
+            if(remainder > 0) freq = freq + 1000000-remainder;
+            else freq = freq + 1000000;
+        }
+        return 1;
+    }
+
+    if(minus_1M_btn() == BTN_RLS && !boot_flag)
+    {
+        uint32_t remainder = freq%1000000;
+        if(freq <= 1000000) freq = 100000;
+        else
+        {
+            if(remainder > 0) freq = freq - remainder;
+            else freq = freq - 1000000;
+        }
+        return 1;
+    }
+
+    return 0;
+    
 }
 
 void main(void){
@@ -211,6 +300,9 @@ void main(void){
     lcd_dma_setup();
     encoder_timer_init();
     buttons_setup();
+    
+    volatile uint32_t stup_delay = 100000;
+    while(stup_delay > 0) stup_delay--;
 
     gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO11); // FPGA CS pin
     gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO4); // Probe pin
@@ -221,12 +313,17 @@ void main(void){
     rcc_periph_clock_enable(RCC_PWR);
     rcc_periph_clock_enable(RCC_BKP);
     
+    mode = OPERATION;
+
     freq = (uint32_t)(BKP_DR2 << 16) | (uint32_t)(BKP_DR1);
     if(freq < 100000 || freq > 28000000) freq = 10000000;
 
     modulation = BKP_DR3;
     bandwidth = BKP_DR4;
     attenuator = BKP_DR5;
+
+    correction_ppb = (uint32_t)(BKP_DR7 << 16) | (uint32_t)(BKP_DR6);
+    if(correction_ppb < -100000 || correction_ppb > 100000) correction_ppb = 10000000;
 
     pwr_disable_backup_domain_write_protect();
 
@@ -235,74 +332,36 @@ void main(void){
     bool flush_scale;
 
     modes_routine(0x3d40, 0x0025);
+    freq_buttons_polling();
+
 
     boot_flag = 0;
 
     while(1)
     {
 
-        freq = freq + encoder_delta()*5;
+        if(mode == OPERATION) freq = freq + encoder_delta()*5;
+        else
+        if(mode == CORRECTION)
+        {
+            correction_ppb += encoder_delta();
+            BKP_DR6 = (uint16_t)(correction_ppb & 0xFFFF);
+            BKP_DR7 = (uint16_t)(correction_ppb >> 16);
+        }
+
         if(freq < 100000) freq = 100000;
         if(freq > 28000000) freq = 28000000;
 
         lcd_draw_line(160, 0, 160, 4, 0xe8c3);
         lcd_draw_line(160, 14, 160, 18, 0xe8c3);
 
-        if(plus_100k_btn() == BTN_PRS)
-        {
-            uint32_t remainder = freq%100000;
-            if(freq > 27900000) freq = 28000000;
-            else
-            {
-                if(remainder > 0) freq = freq + 100000-remainder;
-                else freq = freq + 100000;
-            }
-            flush_scale = 1;
-        }
-
-        if(minus_100k_btn() == BTN_PRS)
-        {
-            uint32_t remainder = freq%100000;
-
-            if(freq < 200000) freq = 100000;
-            else
-            {
-                if(remainder > 0) freq = freq - remainder;
-                else freq = freq - 100000;
-            }
-            flush_scale = 1;
-        }
-
-        if(plus_1M_btn() == BTN_PRS)
-        {
-            uint32_t remainder = freq%1000000;
-            if(freq > 27000000) freq = 28000000;
-            else
-            {
-                if(remainder > 0) freq = freq + 1000000-remainder;
-                else freq = freq + 1000000;
-            }
-            flush_scale = 1;
-        }
-
-        if(minus_1M_btn() == BTN_PRS)
-        {
-            uint32_t remainder = freq%1000000;
-            if(freq <= 1000000) freq = 100000;
-            else
-            {
-                if(remainder > 0) freq = freq - remainder;
-                else freq = freq - 1000000;
-            }
-            flush_scale = 1;
-        }
-        
+        flush_scale = freq_buttons_polling();
         lcd_draw_scale(0, 5, 320, 9, freq, flush_scale);
         flush_scale = 0;
 
         lcd_draw_freq_main(freq);
 
-        double freq_word_float = (double)ph_acc_fs/64.8e6*(double)freq;
+        double freq_word_float = (double)ph_acc_fs/64.8e6*(double)freq*(double)(1+correction_ppb*1e-9);
         uint32_t freq_word = (uint32_t)freq_word_float;
         
         volatile uint8_t s_value = fpga_spi_send(freq_word);
