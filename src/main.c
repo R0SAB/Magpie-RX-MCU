@@ -12,6 +12,7 @@
 #include <libopencm3/stm32/f1/bkp.h>
 #include "buttons.h"
 #include <time.h>
+#include <stdlib.h>
 
 static bool boot_flag = 1;
 static uint32_t freq;                       // Tune frequency in Hz
@@ -46,7 +47,7 @@ int16_t encoder_delta(void)
     return encoder_delta;
 }
 
-void lcd_draw_freq_main(uint32_t freq)
+void lcd_print_freq_main(uint32_t freq)
 {
     uint16_t freq_int = freq/1000;
     uint16_t freq_frac_1 = (freq%1000)/100;
@@ -57,7 +58,7 @@ void lcd_draw_freq_main(uint32_t freq)
     char print_buffer[64];
     if(mode == OPERATION) snprintf(print_buffer, sizeof(print_buffer), " %d.%d%d kHz ", freq_int, freq_frac_1, freq_frac_2);
     else
-    if(mode == CORRECTION) snprintf(print_buffer, sizeof(print_buffer), " Correction: %d ppb ", correction_ppb);
+    if(mode == CORRECTION) snprintf(print_buffer, sizeof(print_buffer), " Correction: %d.%d ppm ", correction_ppb/1000, (abs(correction_ppb)%1000)/100);
 
     if(mode_prev == CORRECTION && mode == OPERATION) snprintf(print_buffer, sizeof(print_buffer), "                      ");
 
@@ -359,7 +360,7 @@ void main(void){
         lcd_draw_scale(0, 5, 320, 9, freq, flush_scale);
         flush_scale = 0;
 
-        lcd_draw_freq_main(freq);
+        lcd_print_freq_main(freq);
 
         double freq_word_float = (double)ph_acc_fs/64.8e6*(double)freq*(double)(1+correction_ppb*1e-9);
         uint32_t freq_word = (uint32_t)freq_word_float;
