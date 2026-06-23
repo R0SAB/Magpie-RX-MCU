@@ -58,7 +58,13 @@ void lcd_print_freq_main(uint32_t freq)
     char print_buffer[64];
     if(mode == OPERATION) snprintf(print_buffer, sizeof(print_buffer), " %d.%d%d kHz ", freq_int, freq_frac_1, freq_frac_2);
     else
-    if(mode == CORRECTION) snprintf(print_buffer, sizeof(print_buffer), " Correction: %d.%d ppm ", correction_ppb/1000, (abs(correction_ppb)%1000)/100);
+    if(mode == CORRECTION)
+    {
+        uint8_t ppm_int = abs(correction_ppb)/1000;
+        uint8_t ppm_frac = (abs(correction_ppb)%1000)/100;
+        if(correction_ppb/100 < 0) snprintf(print_buffer, sizeof(print_buffer), " Correction: -%d.%d ppm ", ppm_int, ppm_frac);
+        else                       snprintf(print_buffer, sizeof(print_buffer), " Correction: %d.%d ppm " , ppm_int, ppm_frac);
+    }
 
     if(mode_prev == CORRECTION && mode == OPERATION) snprintf(print_buffer, sizeof(print_buffer), "                      ");
 
