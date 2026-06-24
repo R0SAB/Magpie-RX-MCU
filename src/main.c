@@ -21,13 +21,27 @@ static uint8_t modulation;
 static uint8_t bandwidth;
 static uint8_t attenuator;
 static uint8_t mode;
+static uint8_t time_field;
 enum modulations {MOD_LSB, MOD_USB, MOD_AM};
 enum bandwidths {BW_4K8, BW_2K8, BW_0K3};
 enum att_values {ATT0, ATT12, ATT24};
 enum modes {OPERATION, CORRECTION, TIME_SET};
-enum time_modes {SEC, MIN, HOUR, DAY, MONTH, YEAR};
 
-int timestamp = 0;
+enum time_modes {SEC, MIN, HOUR, DAY, MONTH, YEAR};
+char time_string[32];
+char date_string[32];
+time_t timestamp = 0;
+int timestamp_int = 0;
+struct tm time_struct =
+{
+    .tm_year = 2019 - 1900,  // 126
+    .tm_mon  = 10 - 1,       // 5 (июнь)
+    .tm_mday = 26,
+    .tm_hour = 19,
+    .tm_min  = 23,
+    .tm_sec  = 0,
+    .tm_isdst = 0
+};
 
 void encoder_timer_init(void)
 {
@@ -118,6 +132,15 @@ void s_meter_init_draw(void)
     lcd_print(200, 80, SCALE_1, ALIGN_LEFT, "MOD: LSB USB  AM", 0x055f, 0x0025);
     lcd_print(200, 95, SCALE_1, ALIGN_LEFT, " BW: 4.8 2.8 0.3", 0x055f, 0x0025);
     lcd_print(200, 110, SCALE_1, ALIGN_LEFT, "ATT:  0  -12 -24", 0x055f, 0x0025);
+}
+
+void rtc_and_bkp_init(void)
+{
+    pwr_disable_backup_domain_write_protect();
+    rcc_periph_clock_enable(RCC_PWR);
+    rcc_periph_clock_enable(RCC_BKP);
+    //rcc_set_rtc_clock_source(RCC_LSE);
+    //rtc_set_prescale_val(32767);
 }
 
 void s_meter_print(uint8_t s_value)
@@ -260,10 +283,70 @@ void modes_routine(uint16_t color, uint16_t bg_color)
     if(mode == TIME_SET && bw_btn() == BTN_PRS)     // Exit TIME_SET - single press of BW
     {
         mode = OPERATION;
-    }
 
-    if(mode == TIME_SET)
+        timestamp = mktime(&time_struct);
+        timestamp_int = (int32_t)timestamp;
+
+        lcd_fill_rect(20, 78, 12, 1, bg_color);
+        lcd_fill_rect(38, 78, 12, 1, bg_color);
+        lcd_fill_rect(56, 78, 12, 1, bg_color);
+        lcd_fill_rect(20, 88, 12, 1, bg_color);
+        lcd_fill_rect(38, 88, 12, 1, bg_color);
+        lcd_fill_rect(56, 88, 24, 1, bg_color);
+    }
+    
+
+
+    if(mode == TIME_SET)                            // Time adjustment routine
     {
+        if(att_btn() == BTN_RLS)
+        {
+            switch(time_field)
+            {
+                case SEC: time_field = MIN; break;
+                case MIN: time_field = HOUR; break;
+                case HOUR: time_field = DAY; break;
+                case DAY: time_field = MONTH; break;
+                case MONTH: time_field = YEAR; break;
+                case YEAR: time_field = SEC; break;
+                default: time_field = SEC;
+            }
+        }
+
+        //time_struct.tm_sec += encoder_delta();
+        mktime(&time_struct);
+
+        lcd_fill_rect(20, 78, 12, 1, (time_field ==  HOUR)? color : bg_color);
+        lcd_fill_rect(38, 78, 12, 1, (time_field ==   MIN)? color : bg_color);
+        lcd_fill_rect(56, 78, 12, 1, (time_field ==   SEC)? color : bg_color);
+        lcd_fill_rect(20, 88, 12, 1, (time_field ==   DAY)? color : bg_color);
+        lcd_fill_rect(38, 88, 12, 1, (time_field == MONTH)? color : bg_color);
+        lcd_fill_rect(56, 88, 24, 1, (time_field ==  YEAR)? color : bg_color);
+
+        if(plus_100k_btn() == BTN_RLS)
+        {
+            if(time_field ==   SEC) time_struct.tm_sec++;
+            if(time_field ==   MIN) time_struct.tm_min++;
+            if(time_field ==  HOUR) time_struct.tm_hour++;
+            if(time_field ==   DAY) time_struct.tm_mday++;
+            if(time_field == MONTH) time_struct.tm_mon++;
+            if(time_field ==  YEAR) time_struct.tm_year++;
+        }
+
+        if(minus_100k_btn() == BTN_RLS)
+        {
+            if(time_field ==   SEC) time_struct.tm_sec--;
+            if(time_field ==   MIN) time_struct.tm_min--;
+            if(time_field ==  HOUR) time_struct.tm_hour--;
+            if(time_field ==   DAY) time_struct.tm_mday--;
+            if(time_field == MONTH) time_struct.tm_mon--;
+            if(time_field ==  YEAR) time_struct.tm_year--;
+        }
+
+        strftime(time_string, sizeof(time_string), "%H:%M:%S ", &time_struct);
+        strftime(date_string, sizeof(date_string), "%d-%m-%Y ", &time_struct);
+        lcd_print(20, 70, SCALE_1, ALIGN_LEFT, time_string, 0x055F, 0x0025);
+        lcd_print(20, 80, SCALE_1, ALIGN_LEFT, date_string, 0x055F, 0x0025);
 
     }
 
@@ -333,6 +416,7 @@ void main(void){
     lcd_dma_setup();
     encoder_timer_init();
     buttons_setup();
+    rtc_and_bkp_init();
     
     volatile uint32_t stup_delay = 100000;
     while(stup_delay > 0) stup_delay--;
@@ -342,9 +426,6 @@ void main(void){
     
     lcd_fill_rect(0,0,320,170,0x0025);  // Main background
     s_meter_init_draw();                // S meter scale numbers
-
-    rcc_periph_clock_enable(RCC_PWR);
-    rcc_periph_clock_enable(RCC_BKP);
     
     mode = OPERATION;
 
@@ -358,8 +439,6 @@ void main(void){
     correction_ppb = (uint32_t)(BKP_DR7 << 16) | (uint32_t)(BKP_DR6);
     if(correction_ppb < -100000 || correction_ppb > 100000) correction_ppb = 10000000;
 
-    pwr_disable_backup_domain_write_protect();
-
     uint64_t ph_acc_fs = (uint64_t) 1 << 32;
 
     bool flush_scale;
@@ -367,6 +446,12 @@ void main(void){
     modes_routine(0x3d40, 0x0025);
     freq_buttons_polling();
 
+    //char time_string[32];
+    //char date_string[32];
+    //strftime(time_string, sizeof(time_string), "%H:%M:%S", &time_struct);
+    //strftime(date_string, sizeof(date_string), "%d-%m-%Y", &time_struct);
+    //lcd_print(20, 70, SCALE_1, ALIGN_LEFT, time_string, 0x055F, 0x0025);
+    //lcd_print(20, 80, SCALE_1, ALIGN_LEFT, date_string, 0x055F, 0x0025);
 
     boot_flag = 0;
 
@@ -407,6 +492,8 @@ void main(void){
         BKP_DR1 = (uint16_t)(freq & 0xFFFF);
         BKP_DR2 = (uint16_t)(freq >> 16);
         
+        snprintf(time_string, sizeof(time_string), "%d", rtc_get_counter_val());
+        lcd_print(50, 50, SCALE_1, ALIGN_LEFT, time_string, 0x055f, 0x0025);
     }
 
 }
