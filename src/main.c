@@ -32,10 +32,11 @@ char time_string[32];
 char date_string[32];
 time_t timestamp = 0;
 int timestamp_int = 0;
+int timestamp_int_prev = 0;
 struct tm time_struct =
 {
-    .tm_year = 2019 - 1900,  // 126
-    .tm_mon  = 10 - 1,       // 5 (июнь)
+    .tm_year = 2019 - 1900,
+    .tm_mon  = 10 - 1,       
     .tm_mday = 26,
     .tm_hour = 19,
     .tm_min  = 23,
@@ -51,7 +52,6 @@ void encoder_timer_init(void)
     rcc_periph_clock_enable(RCC_TIM1);
     timer_slave_set_mode(TIM1, TIM_SMCR_SMS_EM3);
     timer_set_prescaler(TIM1, 0);
-    //timer_set_period(TIM1, 2560);
     timer_enable_counter(TIM1);
 }
 
@@ -139,11 +139,14 @@ void rtc_and_bkp_init(void)
     rcc_periph_clock_enable(RCC_PWR);
     rcc_periph_clock_enable(RCC_BKP);
     pwr_disable_backup_domain_write_protect();
-    rcc_set_rtc_clock_source(RCC_LSE);
-    rtc_enter_config_mode();
-    RCC_BDCR |= RCC_BDCR_RTCEN;     // RTC clock enable
-    rtc_exit_config_mode();
-    rtc_set_prescale_val(32767);
+    
+    if(!rcc_rtc_clock_enabled_flag())
+    {
+        rcc_set_rtc_clock_source(RCC_LSE);
+        rcc_enable_rtc_clock();
+        rtc_set_prescale_val(32767);
+        rtc_set_counter_val(1572121800); // Sat Oct 26 2019 20:30:00
+    }
 }
 
 void s_meter_print(uint8_t s_value)
@@ -185,6 +188,14 @@ void s_meter_bar_draw(uint8_t s_value)
         lcd_fill_rect(20+nums_x_step/2, 153, s_pixels, 3, 0x055f);
         }
         s_value_prev = s_value;
+}
+
+void lcd_print_time(void)
+{
+    strftime(time_string, sizeof(time_string), "%H:%M:%S UTC ", &time_struct);
+    strftime(date_string, sizeof(date_string), "%d-%m-%Y" , &time_struct);
+    lcd_print(20, 70, SCALE_1, ALIGN_LEFT, time_string, 0x055F, 0x0025);
+    lcd_print(20, 80, SCALE_1, ALIGN_LEFT, date_string, 0x055F, 0x0025);
 }
 
 void modes_routine(uint16_t color, uint16_t bg_color)
@@ -279,7 +290,11 @@ void modes_routine(uint16_t color, uint16_t bg_color)
     if(mode == OPERATION && bw_btn() == BTN_HLD)    // Alternate function of BW - long press and release to enter TIME_SET
     {
         if(btn_delay_bw < 200) btn_delay_bw++;
-        if(btn_delay_bw == 200) mode = TIME_SET;
+        if(btn_delay_bw == 200)
+        {
+            mode = TIME_SET;
+            time_field = HOUR;
+        }
     }
     else btn_delay_bw = 0;
 
@@ -289,6 +304,8 @@ void modes_routine(uint16_t color, uint16_t bg_color)
 
         timestamp = mktime(&time_struct);
         timestamp_int = (int32_t)timestamp;
+        rtc_set_counter_val(timestamp_int);
+
 
         lcd_fill_rect(20, 78, 12, 1, bg_color);
         lcd_fill_rect(38, 78, 12, 1, bg_color);
@@ -306,12 +323,12 @@ void modes_routine(uint16_t color, uint16_t bg_color)
         {
             switch(time_field)
             {
-                case SEC: time_field = MIN; break;
-                case MIN: time_field = HOUR; break;
-                case HOUR: time_field = DAY; break;
+                case HOUR: time_field = MIN; break;
+                case MIN: time_field = SEC; break;
+                case SEC: time_field = DAY; break;
                 case DAY: time_field = MONTH; break;
                 case MONTH: time_field = YEAR; break;
-                case YEAR: time_field = SEC; break;
+                case YEAR: time_field = HOUR; break;
                 default: time_field = SEC;
             }
         }
@@ -326,7 +343,7 @@ void modes_routine(uint16_t color, uint16_t bg_color)
         lcd_fill_rect(38, 88, 12, 1, (time_field == MONTH)? color : bg_color);
         lcd_fill_rect(56, 88, 24, 1, (time_field ==  YEAR)? color : bg_color);
 
-        if(plus_100k_btn() == BTN_RLS)
+        if(minus_100k_btn() == BTN_RLS)
         {
             if(time_field ==   SEC) time_struct.tm_sec++;
             if(time_field ==   MIN) time_struct.tm_min++;
@@ -336,7 +353,7 @@ void modes_routine(uint16_t color, uint16_t bg_color)
             if(time_field ==  YEAR) time_struct.tm_year++;
         }
 
-        if(minus_100k_btn() == BTN_RLS)
+        if(minus_1M_btn() == BTN_RLS)
         {
             if(time_field ==   SEC) time_struct.tm_sec--;
             if(time_field ==   MIN) time_struct.tm_min--;
@@ -346,10 +363,7 @@ void modes_routine(uint16_t color, uint16_t bg_color)
             if(time_field ==  YEAR) time_struct.tm_year--;
         }
 
-        strftime(time_string, sizeof(time_string), "%H:%M:%S ", &time_struct);
-        strftime(date_string, sizeof(date_string), "%d-%m-%Y ", &time_struct);
-        lcd_print(20, 70, SCALE_1, ALIGN_LEFT, time_string, 0x055F, 0x0025);
-        lcd_print(20, 80, SCALE_1, ALIGN_LEFT, date_string, 0x055F, 0x0025);
+        lcd_print_time();
 
     }
 
@@ -420,9 +434,6 @@ void main(void){
     encoder_timer_init();
     buttons_setup();
     rtc_and_bkp_init();
-    
-    volatile uint32_t stup_delay = 100000;
-    while(stup_delay > 0) stup_delay--;
 
     gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO11); // FPGA CS pin
     gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO4); // Probe pin
@@ -449,12 +460,8 @@ void main(void){
     modes_routine(0x3d40, 0x0025);
     freq_buttons_polling();
 
-    //char time_string[32];
-    //char date_string[32];
-    //strftime(time_string, sizeof(time_string), "%H:%M:%S", &time_struct);
-    //strftime(date_string, sizeof(date_string), "%d-%m-%Y", &time_struct);
-    //lcd_print(20, 70, SCALE_1, ALIGN_LEFT, time_string, 0x055F, 0x0025);
-    //lcd_print(20, 80, SCALE_1, ALIGN_LEFT, date_string, 0x055F, 0x0025);
+    char time_string[32];
+    char date_string[32];
 
     boot_flag = 0;
 
@@ -492,11 +499,20 @@ void main(void){
 
         modes_routine(0x3d40, 0x0025);
 
+        timestamp_int = rtc_get_counter_val();
+        if(timestamp_int != timestamp_int_prev && mode == OPERATION)
+        {
+            timestamp_int_prev = timestamp_int;
+            timestamp = (time_t)timestamp_int;
+            localtime_r(&timestamp, &time_struct);
+
+            lcd_print_time();
+        }
+
         BKP_DR1 = (uint16_t)(freq & 0xFFFF);
         BKP_DR2 = (uint16_t)(freq >> 16);
         
-        snprintf(time_string, sizeof(time_string), "%d", rtc_get_counter_val());
-        lcd_print(50, 50, SCALE_1, ALIGN_LEFT, time_string, 0x055f, 0x0025);
+        
     }
 
 }
