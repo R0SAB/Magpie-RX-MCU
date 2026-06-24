@@ -136,11 +136,14 @@ void s_meter_init_draw(void)
 
 void rtc_and_bkp_init(void)
 {
-    pwr_disable_backup_domain_write_protect();
     rcc_periph_clock_enable(RCC_PWR);
     rcc_periph_clock_enable(RCC_BKP);
-    //rcc_set_rtc_clock_source(RCC_LSE);
-    //rtc_set_prescale_val(32767);
+    pwr_disable_backup_domain_write_protect();
+    rcc_set_rtc_clock_source(RCC_LSE);
+    rtc_enter_config_mode();
+    RCC_BDCR |= RCC_BDCR_RTCEN;     // RTC clock enable
+    rtc_exit_config_mode();
+    rtc_set_prescale_val(32767);
 }
 
 void s_meter_print(uint8_t s_value)
