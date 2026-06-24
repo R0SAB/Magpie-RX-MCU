@@ -24,7 +24,10 @@ static uint8_t mode;
 enum modulations {MOD_LSB, MOD_USB, MOD_AM};
 enum bandwidths {BW_4K8, BW_2K8, BW_0K3};
 enum att_values {ATT0, ATT12, ATT24};
-enum modes {OPERATION, CORRECTION};
+enum modes {OPERATION, CORRECTION, TIME_SET};
+enum time_modes {SEC, MIN, HOUR, DAY, MONTH, YEAR};
+
+int timestamp = 0;
 
 void encoder_timer_init(void)
 {
@@ -65,6 +68,8 @@ void lcd_print_freq_main(uint32_t freq)
         if(correction_ppb/100 < 0) snprintf(print_buffer, sizeof(print_buffer), " Correction: -%d.%d ppm ", ppm_int, ppm_frac);
         else                       snprintf(print_buffer, sizeof(print_buffer), " Correction: %d.%d ppm " , ppm_int, ppm_frac);
     }
+    else
+    if(mode == TIME_SET) snprintf(print_buffer, sizeof(print_buffer), "    Time set...    ");
 
     if(mode_prev == CORRECTION && mode == OPERATION) snprintf(print_buffer, sizeof(print_buffer), "                      ");
 
@@ -159,9 +164,9 @@ void s_meter_bar_draw(uint8_t s_value)
 void modes_routine(uint16_t color, uint16_t bg_color)
 {
     
-    if(mode == OPERATION)
+    if(mode == OPERATION)                           // Nomal operation of MOD, BW, ATT buttons
     {
-        if(mod_btn() == BTN_RLS && !boot_flag)
+        if(mod_btn() == BTN_RLS && !boot_flag)       
         {
             switch(modulation)
             {
@@ -213,7 +218,7 @@ void modes_routine(uint16_t color, uint16_t bg_color)
         }
     }
 
-    if(boot_flag == 1)
+    if(boot_flag == 1)                              // Initial draw of mode indicators
     {
         modulation = BKP_DR3;
         bandwidth = BKP_DR4;
@@ -232,59 +237,80 @@ void modes_routine(uint16_t color, uint16_t bg_color)
         lcd_fill_rect(278, 119, 18, 2, (attenuator == ATT24) ? color:bg_color);   // ATT -24
     }
 
-    static uint16_t btn_delay;
+    static uint16_t btn_delay_mod;
 
-    if(mode == OPERATION && mod_btn() == BTN_HLD)
+    if(mode == OPERATION && mod_btn() == BTN_HLD)   // Alternate function of MOD - CORRECTION of ref frequency (press and hold)
     {
-        if(btn_delay < 200) btn_delay++;
-        if(btn_delay == 200) mode = CORRECTION;
+        if(btn_delay_mod < 200) btn_delay_mod++;
+        if(btn_delay_mod == 200) mode = CORRECTION;
     }
-    else btn_delay = 0;
+    else btn_delay_mod = 0;
 
-    if(mode == CORRECTION && mod_btn() == BTN_RLS) mode = OPERATION;
+    if(mode == CORRECTION && mod_btn() == BTN_RLS) mode = OPERATION;    // Exit CORRECTION - upon release of MOD
    
+    static uint16_t btn_delay_bw;
+
+    if(mode == OPERATION && bw_btn() == BTN_HLD)    // Alternate function of BW - long press and release to enter TIME_SET
+    {
+        if(btn_delay_bw < 200) btn_delay_bw++;
+        if(btn_delay_bw == 200) mode = TIME_SET;
+    }
+    else btn_delay_bw = 0;
+
+    if(mode == TIME_SET && bw_btn() == BTN_PRS)     // Exit TIME_SET - single press of BW
+    {
+        mode = OPERATION;
+    }
+
+    if(mode == TIME_SET)
+    {
+
+    }
+
 }
 
 bool freq_buttons_polling(void)
 {
-    if(plus_100k_btn() == BTN_RLS && !boot_flag)
+    if(mode == OPERATION)
     {
-        uint32_t remainder = freq%100000;
-        if(freq > 27900000) freq = 28000000;
-        else
+        if(plus_100k_btn() == BTN_RLS && !boot_flag)
         {
-            if(remainder > 0) freq = freq + 100000-remainder;
-            else freq = freq + 100000;
+            uint32_t remainder = freq%100000;
+            if(freq > 27900000) freq = 28000000;
+            else
+            {
+                if(remainder > 0) freq = freq + 100000-remainder;
+                else freq = freq + 100000;
+            }
+            return 1;
         }
-        return 1;
-    }
 
-    if(minus_100k_btn() == BTN_RLS && !boot_flag)
-    {
-        uint32_t remainder = freq%100000;
-
-        if(freq < 200000) freq = 100000;
-        else
+        if(minus_100k_btn() == BTN_RLS && !boot_flag)
         {
-            if(remainder > 0) freq = freq - remainder;
-            else freq = freq - 100000;
-        }
-        return 1;
-    }
+            uint32_t remainder = freq%100000;
 
-    if(plus_1M_btn() == BTN_RLS && !boot_flag)
-    {
-        uint32_t remainder = freq%1000000;
-        if(freq > 27000000) freq = 28000000;
-        else
+            if(freq < 200000) freq = 100000;
+            else
+            {
+                if(remainder > 0) freq = freq - remainder;
+                else freq = freq - 100000;
+            }
+            return 1;
+        }
+
+        if(plus_1M_btn() == BTN_RLS && !boot_flag)
         {
-            if(remainder > 0) freq = freq + 1000000-remainder;
-            else freq = freq + 1000000;
+            uint32_t remainder = freq%1000000;
+            if(freq > 27000000) freq = 28000000;
+            else
+            {
+                if(remainder > 0) freq = freq + 1000000-remainder;
+                else freq = freq + 1000000;
+            }
+            return 1;
         }
-        return 1;
-    }
 
-    if(minus_1M_btn() == BTN_RLS && !boot_flag)
+        if(minus_1M_btn() == BTN_RLS && !boot_flag)
     {
         uint32_t remainder = freq%1000000;
         if(freq <= 1000000) freq = 100000;
@@ -295,7 +321,7 @@ bool freq_buttons_polling(void)
         }
         return 1;
     }
-
+    }
     return 0;
     
 }
