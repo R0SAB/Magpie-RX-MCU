@@ -123,7 +123,7 @@ void static_elements_draw(void)
     const char* s_meter_nums[9] = {" ", "1", "3", "5", "7", "9", "+12", "+24", "+36"};
     uint16_t nums_x = 20;
     uint16_t nums_x_step = 32;
-    uint16_t nums_y = 140;
+    uint16_t nums_y = 150;
 
     lcd_print(nums_x + nums_x_step/2, nums_y, SCALE_1, ALIGN_CENTER, "0", 0x055f, 0x0025);
 
@@ -174,7 +174,7 @@ void s_meter_print(uint8_t s_value)
             }
         }
 
-        lcd_print(30, 110, SCALE_2, ALIGN_LEFT, s_value_string, 0x055f, 0x0025);
+        lcd_print(20, 120, SCALE_2, ALIGN_LEFT, s_value_string, 0x055f, 0x0025);
 }
 
 void s_meter_bar_draw(uint8_t s_value)
@@ -186,9 +186,9 @@ void s_meter_bar_draw(uint8_t s_value)
         static uint8_t s_value_prev;
         if(s_value_prev != s_value && s_value <= 15)
         {
-        lcd_fill_rect(20+nums_x_step/2, 153, 240, 3, 0x0025);
+        lcd_fill_rect(20+nums_x_step/2, 143, 240, 3, 0x0025);
         
-        lcd_fill_rect(20+nums_x_step/2, 153, s_pixels, 3, 0x055f);
+        lcd_fill_rect(20+nums_x_step/2, 143, s_pixels, 3, 0x055f);
         }
         s_value_prev = s_value;
 }
@@ -524,6 +524,8 @@ void main(void){
 
             lcd_print_time();
         }
+
+        lcd_print(35, 98, SCALE_1, ALIGN_LEFT, "Vbat:8.15V", 0x055f, 0x0025);
 
         BKP_DR1 = (uint16_t)(freq & 0xFFFF);
         BKP_DR2 = (uint16_t)(freq >> 16);
