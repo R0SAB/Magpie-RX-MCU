@@ -118,7 +118,7 @@ uint8_t fpga_spi_send(uint32_t freq_word)
         return fpga_agc_byte;
 }
 
-void s_meter_init_draw(void)
+void static_elements_draw(void)
 {
     const char* s_meter_nums[9] = {" ", "1", "3", "5", "7", "9", "+12", "+24", "+36"};
     uint16_t nums_x = 20;
@@ -133,7 +133,7 @@ void s_meter_init_draw(void)
     }
 
     lcd_print(200, 80, SCALE_1, ALIGN_LEFT, "MOD: LSB USB  AM", 0x055f, 0x0025);
-    lcd_print(200, 95, SCALE_1, ALIGN_LEFT, " BW: 4.8 2.8 0.3", 0x055f, 0x0025);
+    lcd_print(200, 95, SCALE_1, ALIGN_LEFT, " BW: 4.8 2.8 ", 0x055f, 0x0025);
     lcd_print(200, 110, SCALE_1, ALIGN_LEFT, "ATT:  0  -12 -24", 0x055f, 0x0025);
 }
 
@@ -216,9 +216,9 @@ void modes_routine(uint16_t color, uint16_t bg_color)
                 default: modulation = MOD_LSB;
             }
 
-            lcd_fill_rect(230, 89, 18, 2, (modulation == MOD_LSB) ? color:bg_color);  // MOD LSB
-            lcd_fill_rect(254, 89, 18, 2, (modulation == MOD_USB) ? color:bg_color);  // MOD USB
-            lcd_fill_rect(278, 89, 18, 2, (modulation == MOD_AM)  ? color:bg_color);  // MOD AM
+            //lcd_fill_rect(230, 89, 18, 2, (modulation == MOD_LSB) ? color:bg_color);  // MOD LSB
+            //lcd_fill_rect(254, 89, 18, 2, (modulation == MOD_USB) ? color:bg_color);  // MOD USB
+            //lcd_fill_rect(278, 89, 18, 2, (modulation == MOD_AM)  ? color:bg_color);  // MOD AM
 
             BKP_DR3 = (uint16_t)modulation & 0x00FF;
         }
@@ -233,9 +233,9 @@ void modes_routine(uint16_t color, uint16_t bg_color)
                 default: bandwidth = BW_4K8;
             }
 
-            lcd_fill_rect(230, 104, 18, 2, (bandwidth == BW_4K8) ? color:bg_color);   // BW 4K8
-            lcd_fill_rect(254, 104, 18, 2, (bandwidth == BW_2K8) ? color:bg_color);   // BW 2k8
-            lcd_fill_rect(278, 104, 18, 2, (bandwidth == BW_0K3) ? color:bg_color);   // BW 0K3
+            //lcd_fill_rect(230, 104, 18, 2, (bandwidth == BW_4K8) ? color:bg_color);   // BW 4K8
+            //lcd_fill_rect(254, 104, 18, 2, (bandwidth == BW_2K8) ? color:bg_color);   // BW 2k8
+            //lcd_fill_rect(278, 104, 18, 2, (bandwidth == BW_0K3) ? color:bg_color);   // BW 0K3
 
             BKP_DR4 = (uint16_t)bandwidth & 0x00FF;
         }
@@ -250,31 +250,21 @@ void modes_routine(uint16_t color, uint16_t bg_color)
                 default: attenuator = ATT0;
             }
 
-            lcd_fill_rect(230, 119, 18, 2, (attenuator ==  ATT0) ? color:bg_color);   // ATT 0
-            lcd_fill_rect(254, 119, 18, 2, (attenuator == ATT12) ? color:bg_color);   // ATT -12
-            lcd_fill_rect(278, 119, 18, 2, (attenuator == ATT24) ? color:bg_color);   // ATT -24
+            //lcd_fill_rect(230, 119, 18, 2, (attenuator ==  ATT0) ? color:bg_color);   // ATT 0
+            //lcd_fill_rect(254, 119, 18, 2, (attenuator == ATT12) ? color:bg_color);   // ATT -12
+            //lcd_fill_rect(278, 119, 18, 2, (attenuator == ATT24) ? color:bg_color);   // ATT -24
 
             BKP_DR5 = (uint16_t)attenuator & 0x00FF;
         }
     }
+
+    if(modulation == MOD_AM && bandwidth == BW_0K3) bandwidth = BW_4K8;
 
     if(boot_flag == 1)                              // Initial draw of mode indicators
     {
         modulation = BKP_DR3;
         bandwidth = BKP_DR4;
         attenuator = BKP_DR5;
-
-        lcd_fill_rect(230, 89, 18, 2, (modulation == MOD_LSB) ? color:bg_color);  // MOD LSB
-        lcd_fill_rect(254, 89, 18, 2, (modulation == MOD_USB) ? color:bg_color);  // MOD USB
-        lcd_fill_rect(278, 89, 18, 2, (modulation == MOD_AM)  ? color:bg_color);  // MOD AM
-
-        lcd_fill_rect(230, 104, 18, 2, (bandwidth == BW_4K8) ? color:bg_color);   // BW 4K8
-        lcd_fill_rect(254, 104, 18, 2, (bandwidth == BW_2K8) ? color:bg_color);   // BW 2k8
-        lcd_fill_rect(278, 104, 18, 2, (bandwidth == BW_0K3) ? color:bg_color);   // BW 0K3
-
-        lcd_fill_rect(230, 119, 18, 2, (attenuator ==  ATT0) ? color:bg_color);   // ATT 0
-        lcd_fill_rect(254, 119, 18, 2, (attenuator == ATT12) ? color:bg_color);   // ATT -12
-        lcd_fill_rect(278, 119, 18, 2, (attenuator == ATT24) ? color:bg_color);   // ATT -24
     }
 
     static uint16_t btn_delay_mod;
@@ -370,6 +360,18 @@ void modes_routine(uint16_t color, uint16_t bg_color)
 
     }
 
+    lcd_print(278, 95, SCALE_1, ALIGN_LEFT, "0.3",(modulation != MOD_AM)? 0x055F:0xB211, 0x0025);
+
+    lcd_fill_rect(230, 89, 18, 2, (modulation == MOD_LSB) ? color:bg_color);  // MOD LSB
+    lcd_fill_rect(254, 89, 18, 2, (modulation == MOD_USB) ? color:bg_color);  // MOD USB
+    lcd_fill_rect(278, 89, 18, 2, (modulation == MOD_AM)  ? color:bg_color);  // MOD AM
+    lcd_fill_rect(230, 104, 18, 2, (bandwidth == BW_4K8) ? color:bg_color);   // BW 4K8
+    lcd_fill_rect(254, 104, 18, 2, (bandwidth == BW_2K8) ? color:bg_color);   // BW 2k8
+    lcd_fill_rect(278, 104, 18, 2, (bandwidth == BW_0K3) ? color:bg_color);   // BW 0K3
+    lcd_fill_rect(230, 119, 18, 2, (attenuator ==  ATT0) ? color:bg_color);   // ATT 0
+    lcd_fill_rect(254, 119, 18, 2, (attenuator == ATT12) ? color:bg_color);   // ATT -12
+    lcd_fill_rect(278, 119, 18, 2, (attenuator == ATT24) ? color:bg_color);   // ATT -24
+
 }
 
 bool freq_buttons_polling(void)
@@ -442,7 +444,7 @@ void main(void){
     gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO4); // Probe pin
     
     lcd_fill_rect(0,0,320,170,0x0025);  // Main background
-    s_meter_init_draw();                // S meter scale numbers
+    static_elements_draw();                // S meter scale numbers
     
     mode = OPERATION;
 
