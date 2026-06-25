@@ -132,8 +132,8 @@ void static_elements_draw(void)
         lcd_print(nums_x + nums_x_step*i, nums_y, SCALE_1, ALIGN_CENTER, s_meter_nums[i], 0x055f, 0x0025);
     }
 
-    lcd_print(200, 80, SCALE_1, ALIGN_LEFT, "MOD: LSB USB  AM", 0x055f, 0x0025);
-    lcd_print(200, 95, SCALE_1, ALIGN_LEFT, " BW: 4.8 2.8 ", 0x055f, 0x0025);
+    lcd_print(200, 80, SCALE_1, ALIGN_LEFT, "MOD: LSB USB ", 0x055f, 0x0025);
+    lcd_print(200, 95, SCALE_1, ALIGN_LEFT, " BW: 4.8 2.8 0.3", 0x055f, 0x0025);
     lcd_print(200, 110, SCALE_1, ALIGN_LEFT, "ATT:  0  -12 -24", 0x055f, 0x0025);
 }
 
@@ -258,7 +258,7 @@ void modes_routine(uint16_t color, uint16_t bg_color)
         }
     }
 
-    if(modulation == MOD_AM && bandwidth == BW_0K3) bandwidth = BW_4K8;
+    if(modulation == MOD_AM && bandwidth == BW_0K3) modulation = MOD_LSB;
 
     if(boot_flag == 1)                              // Initial draw of mode indicators
     {
@@ -360,7 +360,7 @@ void modes_routine(uint16_t color, uint16_t bg_color)
 
     }
 
-    lcd_print(278, 95, SCALE_1, ALIGN_LEFT, "0.3",(modulation != MOD_AM)? 0x055F:0xB211, 0x0025);
+    lcd_print(278, 80, SCALE_1, ALIGN_LEFT, " AM",(bandwidth != BW_0K3)? 0x055F:0xB211, 0x0025);
 
     lcd_fill_rect(230, 89, 18, 2, (modulation == MOD_LSB) ? color:bg_color);  // MOD LSB
     lcd_fill_rect(254, 89, 18, 2, (modulation == MOD_USB) ? color:bg_color);  // MOD USB
