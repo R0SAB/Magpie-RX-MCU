@@ -22,8 +22,8 @@ static uint8_t bandwidth;
 static uint8_t attenuator;
 static uint8_t mode;
 static uint8_t time_field;
-enum modulations {MOD_LSB, MOD_USB, MOD_AM};
-enum bandwidths {BW_4K8, BW_2K8, BW_0K3};
+enum modulations {MOD_LSB = 0, MOD_USB = 1, MOD_AM = 2};
+enum bandwidths {BW_4K8 = 0, BW_2K8 = 1, BW_0K3 = 2};
 enum att_values {ATT0, ATT12, ATT24};
 enum modes {OPERATION, CORRECTION, TIME_SET};
 
@@ -99,20 +99,20 @@ uint8_t fpga_spi_send(uint32_t freq_word)
         spi_set_dff_8bit(LCD_SPI);
         gpio_clear(GPIOB, GPIO11);
 
-        uint8_t rx_byte = 0;
+        uint8_t fpga_agc_byte = 0;
+        uint8_t fpga_ctrl_byte = ((0b11 & bandwidth) << 2) | (0b11 & modulation);
 
+        fpga_agc_byte = spi_xfer(LCD_SPI, fpga_ctrl_byte);
         for(int i = 0; i < 4; i++)
         {
             while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
-            //if(i == 1) rx_byte = spi_read(LCD_SPI);
-            if(i == 0) rx_byte = spi_xfer(LCD_SPI, (freq_word >> (8*(3-i))) & 0xFF);
-            else spi_write(LCD_SPI, (freq_word >> (8*(3-i))) & 0xFF);
+            spi_write(LCD_SPI, (freq_word >> (8*(3-i))) & 0xFF);
         }
 
         while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
         gpio_set(GPIOB, GPIO11);
 
-        return rx_byte;
+        return fpga_agc_byte;
 }
 
 void s_meter_init_draw(void)
