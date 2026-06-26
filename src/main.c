@@ -14,7 +14,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <libopencm3/stm32/flash.h>
-
+#include <libopencm3/stm32/adc.h>
 
 
 static bool boot_flag = 1;
@@ -65,6 +65,50 @@ int16_t encoder_delta(void)
     int16_t encoder_delta = encoder_curr - encoder_prev;
     encoder_prev = encoder_curr;
     return encoder_delta;
+}
+
+void voltmeter_setup(void)
+{
+    gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_ANALOG, GPIO1);
+    rcc_periph_clock_enable(RCC_ADC1);
+    adc_power_off(ADC1);
+    adc_disable_dma(ADC1);
+    adc_disable_scan_mode(ADC1);
+    adc_set_sample_time_on_all_channels(ADC1, ADC_SMPR_SMP_55DOT5CYC);
+    adc_set_regular_sequence(ADC1, 1, (uint8_t[]){ADC_CHANNEL1});
+    adc_set_single_conversion_mode(ADC1);
+    adc_set_right_aligned(ADC1);
+    adc_power_on(ADC1);
+    adc_calibrate(ADC1);
+}
+
+void voltmeter_routine()
+{
+    float R_upper = 5.1e3f;
+    float R_lower = 2.7e3f;
+    float V_ref = 3e0f;
+
+    char voltage_string[16];
+
+    static uint8_t frame_counter;
+    if(frame_counter < 19) frame_counter++;
+    else frame_counter = 0;
+
+    if(frame_counter == 0) adc_start_conversion_direct(ADC1);
+
+    if(frame_counter == 1)
+    {
+        uint16_t adc_value = adc_read_regular(ADC1);
+
+        float volt_float = (float)adc_value / (float)4096 * V_ref * (1.0f + R_upper / R_lower);
+        uint16_t V_mv = (uint16_t)(volt_float * 1000);
+        uint8_t volt_int = V_mv / 1000;
+        uint8_t volt_frac_1 = (V_mv % 1000) / 100;
+        uint8_t volt_frac_2 = (V_mv % 100) / 10;
+        
+        snprintf(voltage_string, sizeof(voltage_string), "Vbat:%d.%d%dV", volt_int, volt_frac_1, volt_frac_2);
+        lcd_print(35, 98, SCALE_1, ALIGN_LEFT, voltage_string, 0x055f, 0x0025);
+    }
 }
 
 void lcd_print_freq_main(uint32_t freq)
@@ -133,7 +177,7 @@ void static_elements_draw(void)
     }
 
     lcd_print(200, 80, SCALE_1, ALIGN_LEFT, "MOD: LSB USB ", 0x055f, 0x0025);
-    lcd_print(200, 95, SCALE_1, ALIGN_LEFT, " BW: 4.8 2.8 0.3", 0x055f, 0x0025);
+    lcd_print(200, 95, SCALE_1, ALIGN_LEFT, " BW: 4.8 2.8 ", 0x055f, 0x0025);
     lcd_print(200, 110, SCALE_1, ALIGN_LEFT, "ATT:  0  -12 -24", 0x055f, 0x0025);
 }
 
@@ -211,7 +255,7 @@ void modes_routine(uint16_t color, uint16_t bg_color)
             switch(modulation)
             {
                 case MOD_LSB: modulation = MOD_USB; break;
-                case MOD_USB: modulation =  MOD_AM; break;
+                case MOD_USB: modulation = (bandwidth == BW_0K3)? MOD_LSB : MOD_AM; break;
                 case MOD_AM:  modulation = MOD_LSB; break;
                 default: modulation = MOD_LSB;
             }
@@ -228,7 +272,7 @@ void modes_routine(uint16_t color, uint16_t bg_color)
             switch(bandwidth)
             {
                 case BW_4K8: bandwidth = BW_2K8; break;
-                case BW_2K8: bandwidth = BW_0K3; break;
+                case BW_2K8: bandwidth = (modulation == MOD_AM) ? BW_4K8 : BW_0K3; break;
                 case BW_0K3: bandwidth = BW_4K8; break;
                 default: bandwidth = BW_4K8;
             }
@@ -258,7 +302,6 @@ void modes_routine(uint16_t color, uint16_t bg_color)
         }
     }
 
-    if(modulation == MOD_AM && bandwidth == BW_0K3) modulation = MOD_LSB;
 
     if(boot_flag == 1)                              // Initial draw of mode indicators
     {
@@ -361,6 +404,7 @@ void modes_routine(uint16_t color, uint16_t bg_color)
     }
 
     lcd_print(278, 80, SCALE_1, ALIGN_LEFT, " AM",(bandwidth != BW_0K3)? 0x055F:0xB211, 0x0025);
+    lcd_print(278, 95, SCALE_1, ALIGN_LEFT, "0.3",(modulation != MOD_AM)? 0x055F:0xB211, 0x0025);
 
     lcd_fill_rect(230, 89, 18, 2, (modulation == MOD_LSB) ? color:bg_color);  // MOD LSB
     lcd_fill_rect(254, 89, 18, 2, (modulation == MOD_USB) ? color:bg_color);  // MOD USB
@@ -481,6 +525,9 @@ void main(void){
     lcd_print(20, 70, SCALE_1, ALIGN_LEFT, time_buffer, 0x055f, 0x0025);
     lcd_print(20, 80, SCALE_1, ALIGN_LEFT, date_buffer, 0x055f, 0x0025);
 
+    voltmeter_setup();
+
+
     while(1)
     {
 
@@ -525,7 +572,9 @@ void main(void){
             lcd_print_time();
         }
 
-        lcd_print(35, 98, SCALE_1, ALIGN_LEFT, "Vbat:8.15V", 0x055f, 0x0025);
+        //lcd_print(35, 98, SCALE_1, ALIGN_LEFT, "Vbat:8.15V", 0x055f, 0x0025);
+
+        voltmeter_routine();
 
         BKP_DR1 = (uint16_t)(freq & 0xFFFF);
         BKP_DR2 = (uint16_t)(freq >> 16);
