@@ -311,7 +311,7 @@ void lcd_draw_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint8_t thi
 
 void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* string, uint16_t font_color, uint16_t bg_color)
 {
-    uint8_t font_height = 8;
+    uint8_t font_height = 7;
     uint8_t font_width = 5;
 
     uint8_t length = strlen(string);
@@ -569,6 +569,7 @@ void lcd_draw_pixel(uint16_t x, uint16_t y, uint16_t color)
 {
     uint16_t x1 = x_crtd(x);
     uint16_t y1 = y_crtd(y);
+    while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
     lcd_send_cmd_8(0x2A);
     lcd_send_data_16(x1);
     lcd_send_cmd_8(0x2B);

@@ -139,6 +139,49 @@ void lcd_print_freq_main(uint32_t freq)
     mode_prev = mode;
 }
 
+void draw_visor(void)
+{
+    static uint8_t modulation_prev;
+    static uint8_t bandwidth_prev;
+
+    uint16_t color = /*0x3d40*/0x2bc0;
+    uint16_t bg_color = 0x0025;
+
+    if(modulation != modulation_prev || bandwidth != bandwidth_prev)
+    {
+        lcd_fill_rect(160-38, 1, 77, 3, bg_color);  // clear whole +- 4/8 kHz range
+
+        if(modulation == MOD_AM)
+        {
+            
+            if(bandwidth == BW_4K8) lcd_fill_rect(160-38, 1, 77, 3, color);
+            if(bandwidth == BW_2K8) lcd_fill_rect(160-22, 1, 45, 3, color);
+        }
+
+        if(modulation == MOD_LSB)
+        {
+            
+            if(bandwidth == BW_4K8) lcd_fill_rect(160-38, 1, 38, 3, color);
+            if(bandwidth == BW_2K8) lcd_fill_rect(160-22, 1, 22, 3, color);
+            if(bandwidth == BW_0K3) lcd_fill_rect(160-9, 1, 3, 3, color);
+        }
+
+        if(modulation == MOD_USB)
+        {
+            
+            if(bandwidth == BW_4K8) lcd_fill_rect(160+1, 1, 38, 3, color);
+            if(bandwidth == BW_2K8) lcd_fill_rect(160+1, 1, 22, 3, color);
+            if(bandwidth == BW_0K3) lcd_fill_rect(160+7, 1, 3, 3, color);
+        }
+
+        lcd_draw_line(160, 0, 160, 4, 0xe8c3);
+        lcd_draw_line(160, 14, 160, 18, 0xe8c3);
+    }
+
+    modulation_prev = modulation;
+    bandwidth_prev = bandwidth;
+}
+
 uint8_t fpga_spi_send(uint32_t freq_word)
 {
         while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
@@ -509,24 +552,9 @@ void main(void){
     modes_routine(0x3d40, 0x0025);
     freq_buttons_polling();
 
-    char time_string[32];
-    char date_string[32];
-
-    boot_flag = 0;
-
-    char time_buffer[32];
-    char date_buffer[32];
-    int32_t unix_time = 1782251068;
-    time_t t = (time_t)unix_time;
-    struct tm *tm_info = localtime(&t);
-    strftime(time_buffer, sizeof(time_buffer), "%H:%M:%S", tm_info);
-    strftime(date_buffer, sizeof(date_buffer), "%d-%m-%Y", tm_info);
-
-    lcd_print(20, 70, SCALE_1, ALIGN_LEFT, time_buffer, 0x055f, 0x0025);
-    lcd_print(20, 80, SCALE_1, ALIGN_LEFT, date_buffer, 0x055f, 0x0025);
-
     voltmeter_setup();
 
+    boot_flag = 0;
 
     while(1)
     {
@@ -543,12 +571,11 @@ void main(void){
         if(freq < 100000) freq = 100000;
         if(freq > 28000000) freq = 28000000;
 
-        lcd_draw_line(160, 0, 160, 4, 0xe8c3);
-        lcd_draw_line(160, 14, 160, 18, 0xe8c3);
-
         flush_scale = freq_buttons_polling();
         lcd_draw_scale(0, 5, 320, 9, freq, flush_scale);
         flush_scale = 0;
+
+        draw_visor();
 
         lcd_print_freq_main(freq);
 
