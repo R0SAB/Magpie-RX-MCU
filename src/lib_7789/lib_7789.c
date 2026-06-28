@@ -408,15 +408,17 @@ void lcd_draw_bmp(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t* bm
 void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t freq, bool flush)
 {
 
+    uint32_t freq_local = freq + 125/2;     // Half-pixel shift (for accurate center of pixel)
+
     uint16_t x1 = x_crtd(x);
     uint16_t y1 = y_crtd(y);
     uint16_t x2 = x1 + dx-1;
     uint16_t y2 = y1 + dy-1;
 
-    uint16_t offset_1 = (freq/125)%320;
-    uint16_t offset_2 = ((freq/125)+80)%320;
-    uint16_t offset_3 = ((freq/125)+160)%320;
-    uint16_t offset_4 = ((freq/125)+240)%320;
+    uint16_t offset_1 = (freq_local/125)%320;
+    uint16_t offset_2 = ((freq_local/125)+80)%320;
+    uint16_t offset_3 = ((freq_local/125)+160)%320;
+    uint16_t offset_4 = ((freq_local/125)+240)%320;
 
     uint32_t packet_length = dx * dy;
     uint32_t packet_cnt = 0;
@@ -503,10 +505,10 @@ void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t f
     char num_3[11];
     char num_4[11];
 
-    snprintf(num_1, 11, "   %d   ", (freq-offset_1*125)/1000+20);
-    snprintf(num_2, 11, "   %d   ", (freq-offset_2*125)/1000+20);
-    snprintf(num_3, 11, "   %d   ", (freq-offset_3*125)/1000+20);
-    snprintf(num_4, 11, "   %d   ", (freq-offset_4*125)/1000+20);
+    snprintf(num_1, 11, "   %d   ", (freq_local-offset_1*125)/1000+20);
+    snprintf(num_2, 11, "   %d   ", (freq_local-offset_2*125)/1000+20);
+    snprintf(num_3, 11, "   %d   ", (freq_local-offset_3*125)/1000+20);
+    snprintf(num_4, 11, "   %d   ", (freq_local-offset_4*125)/1000+20);
 
     if(flush) lcd_fill_rect(0, 20, 320, 8, 0x0025);
 
