@@ -579,7 +579,7 @@ void main(void){
 
         lcd_print_freq_main(freq);
 
-        double freq_word_float = (double)ph_acc_fs/64.8e6*(double)freq*(double)(1+correction_ppb*1e-9);
+        double freq_word_float = (double)ph_acc_fs/65e6*(double)freq*(double)(1+correction_ppb*1e-9);
         uint32_t freq_word = (uint32_t)freq_word_float;
         
         volatile uint8_t s_value = fpga_spi_send(freq_word);
