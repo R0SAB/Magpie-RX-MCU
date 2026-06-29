@@ -14,8 +14,7 @@ const uint32_t LCD_DC_PORT_RCC;
 const uint32_t LCD_RESET_PORT_RCC;
 const uint32_t LCD_CS_PORT_RCC;
 
-static uint16_t lcd_buffer[8000];
-static uint8_t font_ram[91][8];
+static uint16_t lcd_buffer[6000];
 volatile uint16_t color_static;
 volatile bool dma_busy;
 
@@ -328,7 +327,7 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* strin
         x1 = x_crtd(x);
         y1 = y_crtd(y);
         x2 = x1 + display_width - 1;
-        y2 = y1 + display_height;
+        y2 = y1 + display_height -1;
     }
 
     if(alignment == ALIGN_CENTER)
@@ -336,7 +335,7 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* strin
         x1 = x_crtd(x) - display_width/2;
         y1 = y_crtd(y);
         x2 = x1 + display_width - 1;
-        y2 = y1 + display_height;
+        y2 = y1 + display_height - 1;
     }
 
     if(alignment == ALIGN_RIGHT)
@@ -344,7 +343,7 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* strin
         x2 = x_crtd(x);
         y1 = y_crtd(y);
         x1 = x2 - display_width + 2;
-        y2 = y1 + display_height;
+        y2 = y1 + display_height - 1;
     }
 
     uint32_t packet_length = display_width * display_height;
@@ -362,7 +361,7 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* strin
                 {
                     for(uint8_t scale_h_cnt = 0; scale_h_cnt < scale; scale_h_cnt++)
                     {
-                        if((font_ram[char_addr][v_cnt] << shift_cnt) & 0b00010000) lcd_buffer[packet_cnt] = font_color;
+                        if((font_44780[char_addr][v_cnt] << shift_cnt) & 0b00010000) lcd_buffer[packet_cnt] = font_color;
                         else lcd_buffer[packet_cnt] = bg_color;
                         packet_cnt++;
                     }
@@ -447,18 +446,7 @@ void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t f
         else buffer_coarse[pixel_cnt] = 0x0025;
     }
 
-    //gpio_set(GPIOA, GPIO4);
-/*
-    for(uint8_t line_cnt = 0; line_cnt < dy; line_cnt++)
-    {
-        for(uint16_t pixel_cnt = 0; pixel_cnt < 320; pixel_cnt++)
-        {
-            if(line_cnt < 5) lcd_buffer[packet_cnt] = buffer_fine[pixel_cnt];
-            else lcd_buffer[packet_cnt] = buffer_coarse[pixel_cnt];
-            packet_cnt++;
-        }
-    }
-*/
+    
 // ############################# QWEN START ##############################
     uint8_t fine_lines = (dy < 5) ? dy : 5; // Защита, если dy < 5
     uint8_t coarse_lines = dy - fine_lines;
@@ -482,7 +470,7 @@ void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t f
     }
 // ############################## QWEN END ################################
 
-    //gpio_clear(GPIOA, GPIO4);
+    
 
     lcd_send_cmd_8(0x2A);
     lcd_send_data_16(x1);
@@ -526,8 +514,6 @@ void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t f
 
 void lcd_init(uint8_t orientation) // https://github.com/russhughes/st7789_mpy/blob/master/README.md#madctl-constants
 {
-    memcpy(font_ram, font_44780, sizeof(font_44780));
-
     gpio_clear(LCD_CS_PORT, LCD_CS_PIN);
 
     lcd_spi_setup();

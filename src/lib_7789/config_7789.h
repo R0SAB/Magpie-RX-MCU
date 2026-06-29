@@ -12,8 +12,8 @@
 #define LCD_RESET_PORT GPIOB
 #define LCD_RESET_PIN GPIO0
 
-#define LCD_CS_PORT GPIOB
-#define LCD_CS_PIN GPIO10
+#define LCD_CS_PORT GPIOA
+#define LCD_CS_PIN GPIO3
 
 static const uint16_t lcd_offset_x = 0;
 static const uint16_t lcd_offset_y = 35;

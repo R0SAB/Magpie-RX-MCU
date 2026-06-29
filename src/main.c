@@ -30,6 +30,9 @@ enum bandwidths {BW_4K8 = 0, BW_2K8 = 1, BW_0K3 = 2};
 enum att_values {ATT0, ATT12, ATT24};
 enum modes {OPERATION, CORRECTION, TIME_SET};
 
+#define FPGA_CS_PORT GPIOA
+#define FPGA_CS_PIN GPIO4
+
 enum time_modes {SEC, MIN, HOUR, DAY, MONTH, YEAR};
 char time_string[32];
 char date_string[32];
@@ -88,7 +91,7 @@ void voltmeter_routine()
     float R_lower = 2.7e3f;
     float V_ref = 3e0f;
 
-    char voltage_string[16];
+    static char voltage_string[16];
 
     static uint8_t frame_counter;
     if(frame_counter < 19) frame_counter++;
@@ -187,7 +190,7 @@ uint8_t fpga_spi_send(uint32_t freq_word)
         while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
         gpio_set(LCD_CS_PORT, LCD_CS_PIN);
         spi_set_dff_8bit(LCD_SPI);
-        gpio_clear(GPIOB, GPIO11);
+        gpio_clear(FPGA_CS_PORT, FPGA_CS_PIN);
 
         uint8_t fpga_agc_byte = 0;
         uint8_t fpga_ctrl_byte = ((0b11 & bandwidth) << 2) | (0b11 & modulation);
@@ -200,7 +203,7 @@ uint8_t fpga_spi_send(uint32_t freq_word)
         }
 
         while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
-        gpio_set(GPIOB, GPIO11);
+        gpio_set(FPGA_CS_PORT, FPGA_CS_PIN);
 
         return fpga_agc_byte;
 }
@@ -527,7 +530,7 @@ void main(void){
     buttons_setup();
     rtc_and_bkp_init();
 
-    gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO11); // FPGA CS pin
+    gpio_set_mode(FPGA_CS_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, FPGA_CS_PIN); // FPGA CS pin
     gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO4); // Probe pin
     
     lcd_fill_rect(0,0,320,170,0x0025);  // Main background
