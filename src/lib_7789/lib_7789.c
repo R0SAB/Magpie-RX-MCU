@@ -14,7 +14,7 @@ const uint32_t LCD_DC_PORT_RCC;
 const uint32_t LCD_RESET_PORT_RCC;
 const uint32_t LCD_CS_PORT_RCC;
 
-static uint16_t lcd_buffer[6000];
+static uint16_t lcd_buffer[8192];
 volatile uint16_t color_static;
 volatile bool dma_busy;
 
