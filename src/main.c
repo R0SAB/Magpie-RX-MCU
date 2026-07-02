@@ -266,6 +266,14 @@ void static_elements_draw(void)
     lcd_print(200, 70, SCALE_1, ALIGN_LEFT, "MOD: LSB USB ", 0x055f, 0x0025);
     lcd_print(200, 85, SCALE_1, ALIGN_LEFT, " BW: 4.8 2.8 ", 0x055f, 0x0025);
     lcd_print(200, 100, SCALE_1, ALIGN_LEFT, "ATT:  0  -12 -24", 0x055f, 0x0025);
+    lcd_print(200, 115, SCALE_1, ALIGN_LEFT, "VOL:", 0x055f, 0x0025);
+
+    lcd_fill_rect(230, 117, 2, 5, 0x0e00);
+
+    for(uint8_t i=0; i < 32; i++)
+    {
+        lcd_fill_rect(232 + 2*i, 117, 1, 5, 0x055f);
+    }
 }
 
 void rtc_and_bkp_init(void)
