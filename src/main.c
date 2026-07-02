@@ -9,13 +9,14 @@
 #include <libopencm3/stm32/spi.h>
 #include <libopencm3/stm32/rtc.h>
 #include <libopencm3/stm32/pwr.h>
+#include <libopencm3/stm32/i2c.h>
 #include <libopencm3/stm32/f1/bkp.h>
 #include "buttons.h"
 #include <time.h>
 #include <stdlib.h>
 #include <libopencm3/stm32/flash.h>
 #include <libopencm3/stm32/adc.h>
-
+#include "si5351_config.h"
 
 static bool boot_flag = 1;
 static uint32_t freq;                       // Tune frequency in Hz
@@ -29,6 +30,8 @@ enum modulations {MOD_LSB = 0, MOD_USB = 1, MOD_AM = 2};
 enum bandwidths {BW_4K8 = 0, BW_2K8 = 1, BW_0K3 = 2};
 enum att_values {ATT0, ATT12, ATT24};
 enum modes {OPERATION, CORRECTION, TIME_SET};
+
+const double adc_samp_freq = 70.56e6;
 
 #define FPGA_CS_PORT GPIOA
 #define FPGA_CS_PIN GPIO4
@@ -49,6 +52,44 @@ struct tm time_struct =
     .tm_sec  = 0,
     .tm_isdst = 0
 };
+
+struct packet
+{
+    uint8_t reg_addr;
+    uint8_t buf[64];
+};
+
+struct packet i2c_packet;
+
+void i2c_setup()
+{
+
+    rcc_periph_clock_enable(RCC_I2C2);
+    i2c_peripheral_disable(I2C2);
+    i2c_set_clock_frequency(I2C2, 36);
+    i2c_set_ccr(I2C2, 180);
+    i2c_set_standard_mode(I2C2);
+    i2c_set_trise(I2C2, 37);
+    i2c_set_own_7bit_slave_address(I2C2, 0b0000111);
+    i2c_peripheral_enable(I2C2);
+    
+    rcc_periph_clock_enable(RCC_GPIOB);
+    gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_OPENDRAIN, GPIO10 | GPIO11);
+
+}
+
+void si5351_init()
+{
+    for(uint16_t i = 0; i < SI5351A_REGS_NUM; i++)
+    {
+
+        i2c_packet.reg_addr = si5351a_regs[i].address;
+        i2c_packet.buf[0] = si5351a_regs[i].value;
+        gpio_set(GPIOA, GPIO1);
+
+        i2c_transfer7(I2C2, si5351_addr, &i2c_packet, 2, NULL, 0);
+    }
+}
 
 void encoder_timer_init(void)
 {
@@ -529,6 +570,8 @@ void main(void){
     encoder_timer_init();
     buttons_setup();
     rtc_and_bkp_init();
+    i2c_setup();
+    voltmeter_setup();
 
     gpio_set_mode(FPGA_CS_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, FPGA_CS_PIN); // FPGA CS pin
     gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO4); // Probe pin
@@ -555,7 +598,9 @@ void main(void){
     modes_routine(0x3d40, 0x0025);
     freq_buttons_polling();
 
-    voltmeter_setup();
+    
+
+    si5351_init();
 
     boot_flag = 0;
 
@@ -582,7 +627,7 @@ void main(void){
 
         lcd_print_freq_main(freq);
 
-        double freq_word_float = (double)ph_acc_fs/65e6*(double)freq*(double)(1+correction_ppb*1e-9);
+        double freq_word_float = (double)ph_acc_fs/adc_samp_freq*(double)freq*(double)(1+correction_ppb*1e-9);
         uint32_t freq_word = (uint32_t)freq_word_float;
         
         volatile uint8_t s_value = fpga_spi_send(freq_word);
