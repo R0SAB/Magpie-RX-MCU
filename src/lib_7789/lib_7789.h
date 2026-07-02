@@ -22,5 +22,8 @@ void lcd_spi_setup(void);
 void lcd_dma_setup(void);
 void lcd_reset(void);
 
+void lcd_send_cmd_8(uint8_t cmd);
+void lcd_send_data_8(uint8_t data);
+
 
 
