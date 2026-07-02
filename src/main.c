@@ -185,8 +185,8 @@ void lcd_print_freq_main(uint32_t freq)
 
 void draw_visor(void)
 {
-    static uint8_t modulation_prev;
-    static uint8_t bandwidth_prev;
+    static uint8_t modulation_prev = MOD_AM + 1;
+    static uint8_t bandwidth_prev = BW_0K3 + 1;
 
     uint16_t color = /*0x3d40*/0x2bc0;
     uint16_t bg_color = 0x0025;
