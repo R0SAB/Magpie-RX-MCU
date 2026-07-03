@@ -18,18 +18,20 @@
 #include <libopencm3/stm32/adc.h>
 #include "si5351_config.h"
 
-static bool boot_flag = 1;
-static uint32_t freq;                       // Tune frequency in Hz
-static int32_t correction_ppb;
-static uint8_t modulation;
-static uint8_t bandwidth;
-static uint8_t attenuator;
-static uint8_t mode;
-static uint8_t time_field;
+bool boot_flag = 1;
+uint32_t freq;                       // Tune frequency in Hz
+int32_t correction_ppb;
+uint8_t modulation;
+uint8_t bandwidth;
+uint8_t attenuator;
+uint8_t mode;
+uint8_t time_field;
 enum modulations {MOD_LSB = 0, MOD_USB = 1, MOD_AM = 2};
 enum bandwidths {BW_4K8 = 0, BW_2K8 = 1, BW_0K3 = 2};
 enum att_values {ATT0, ATT12, ATT24};
-enum modes {OPERATION, CORRECTION, TIME_SET};
+enum modes {OPERATION, CORRECTION, VOLUME, TIME_SET};
+int32_t volume_cnt;
+uint8_t volume;
 
 const double adc_samp_freq = 70.56e6;
 
@@ -163,7 +165,7 @@ void lcd_print_freq_main(uint32_t freq)
     
     static uint8_t mode_prev;
 
-    char print_buffer[64];
+    static char print_buffer[64];
     if(mode == OPERATION) snprintf(print_buffer, sizeof(print_buffer), " %d.%d%d kHz ", freq_int, freq_frac_1, freq_frac_2);
     else
     if(mode == CORRECTION)
@@ -268,12 +270,8 @@ void static_elements_draw(void)
     lcd_print(200, 100, SCALE_1, ALIGN_LEFT, "ATT:  0  -12 -24", 0x055f, 0x0025);
     lcd_print(200, 115, SCALE_1, ALIGN_LEFT, "VOL:", 0x055f, 0x0025);
 
-    lcd_fill_rect(230, 117, 2, 5, 0x0e00);
+    lcd_fill_rect(230, 116, 3, 6, 0x0e00);      // Volume zero mark
 
-    for(uint8_t i=0; i < 32; i++)
-    {
-        lcd_fill_rect(232 + 2*i, 117, 1, 5, 0x055f);
-    }
 }
 
 void rtc_and_bkp_init(void)
@@ -405,6 +403,17 @@ void modes_routine(uint16_t color, uint16_t bg_color)
         attenuator = BKP_DR5;
     }
 
+    static uint16_t att_delay_mod;
+
+    if(mode == OPERATION && att_btn() == BTN_HLD)   // Alternate function of ATT - adjust VOLUME (press and hold)
+    {
+        if(att_delay_mod < 35) att_delay_mod++;
+        if(att_delay_mod == 35) mode = VOLUME;
+    }
+    else att_delay_mod = 0;
+
+    if(mode == VOLUME && att_btn() == BTN_RLS) mode = OPERATION;    // Exit VOLUME - upon release of ATT
+
     static uint16_t btn_delay_mod;
 
     if(mode == OPERATION && mod_btn() == BTN_HLD)   // Alternate function of MOD - CORRECTION of ref frequency (press and hold)
@@ -501,15 +510,26 @@ void modes_routine(uint16_t color, uint16_t bg_color)
     lcd_print(278, 70, SCALE_1, ALIGN_LEFT, " AM",(bandwidth != BW_0K3)? 0x055F:0xB211, 0x0025);
     lcd_print(278, 85, SCALE_1, ALIGN_LEFT, "0.3",(modulation != MOD_AM)? 0x055F:0xB211, 0x0025);
 
-    lcd_fill_rect(230, 79, 18, 2, (modulation == MOD_LSB) ? color:bg_color);  // MOD LSB
-    lcd_fill_rect(254, 79, 18, 2, (modulation == MOD_USB) ? color:bg_color);  // MOD USB
-    lcd_fill_rect(278, 79, 18, 2, (modulation == MOD_AM)  ? color:bg_color);  // MOD AM
-    lcd_fill_rect(230, 94, 18, 2, (bandwidth == BW_4K8) ? color:bg_color);   // BW 4K8
-    lcd_fill_rect(254, 94, 18, 2, (bandwidth == BW_2K8) ? color:bg_color);   // BW 2k8
-    lcd_fill_rect(278, 94, 18, 2, (bandwidth == BW_0K3) ? color:bg_color);   // BW 0K3
-    lcd_fill_rect(230, 109, 18, 2, (attenuator ==  ATT0) ? color:bg_color);   // ATT 0
-    lcd_fill_rect(254, 109, 18, 2, (attenuator == ATT12) ? color:bg_color);   // ATT -12
-    lcd_fill_rect(278, 109, 18, 2, (attenuator == ATT24) ? color:bg_color);   // ATT -24
+    lcd_fill_rect(230, 79, 18, 2, (modulation == MOD_LSB) ? color:bg_color);  // MOD LSB underscore
+    lcd_fill_rect(254, 79, 18, 2, (modulation == MOD_USB) ? color:bg_color);  // MOD USB underscore
+    lcd_fill_rect(278, 79, 18, 2, (modulation == MOD_AM)  ? color:bg_color);  // MOD AM underscore
+    lcd_fill_rect(230, 94, 18, 2, (bandwidth == BW_4K8) ? color:bg_color);   // BW 4K8 underscore
+    lcd_fill_rect(254, 94, 18, 2, (bandwidth == BW_2K8) ? color:bg_color);   // BW 2k8 underscore
+    lcd_fill_rect(278, 94, 18, 2, (bandwidth == BW_0K3) ? color:bg_color);   // BW 0K3 underscore
+    lcd_fill_rect(230, 109, 18, 2, (attenuator ==  ATT0) ? color:bg_color);   // ATT 0 underscore
+    lcd_fill_rect(254, 109, 18, 2, (attenuator == ATT12) ? color:bg_color);   // ATT -12 underscore
+    lcd_fill_rect(278, 109, 18, 2, (attenuator == ATT24) ? color:bg_color);   // ATT -24 underscore
+
+    static uint8_t volume_blink_cnt;
+    if(volume_blink_cnt < 40) volume_blink_cnt ++;
+    else volume_blink_cnt = 0;
+
+    lcd_fill_rect(200, 125, 18, 2, (mode == VOLUME && volume_blink_cnt < 20) ? color:bg_color);   // VOL underscore, blinking 
+
+    for(uint8_t i=1; i < 32; i++)
+    {
+        lcd_fill_rect(232 + 2*i, 116, 1, 6, (volume >= i) ? 0x055F:bg_color);
+    }
 
 }
 
@@ -595,6 +615,7 @@ void main(void){
     modulation = BKP_DR3;
     bandwidth = BKP_DR4;
     attenuator = BKP_DR5;
+    volume_cnt = 0;
 
     correction_ppb = (uint32_t)(BKP_DR7 << 16) | (uint32_t)(BKP_DR6);
     if(correction_ppb < -100000 || correction_ppb > 100000) correction_ppb = 10000000;
@@ -625,6 +646,14 @@ void main(void){
             correction_ppb += encoder_delta();
             BKP_DR6 = (uint16_t)(correction_ppb & 0xFFFF);
             BKP_DR7 = (uint16_t)(correction_ppb >> 16);
+        }
+        else
+        if(mode == VOLUME)
+        {
+            volume_cnt += encoder_delta();
+            if(volume_cnt > 2048) volume_cnt = 2048;
+            if(volume_cnt < 0) volume_cnt = 0;
+            volume = volume_cnt >> 6;
         }
 
         if(freq < 100000) freq = 100000;
