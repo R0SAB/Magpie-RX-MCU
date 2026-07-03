@@ -238,8 +238,12 @@ uint8_t fpga_spi_send(uint32_t freq_word)
         uint8_t fpga_agc_byte = 0;
         uint8_t fpga_ctrl_byte = ((0b11 & bandwidth) << 2) | (0b11 & modulation);
 
-        fpga_agc_byte = spi_xfer(LCD_SPI, fpga_ctrl_byte);
-        for(int i = 0; i < 4; i++)
+        fpga_agc_byte = spi_xfer(LCD_SPI, fpga_ctrl_byte);      // Send modes, receive AGC
+        
+        while((SPI_SR(LCD_SPI) & SPI_SR_BSY));                  // Send Volume
+        spi_write(LCD_SPI, volume);
+
+        for(int i = 0; i < 4; i++)                              // Send freq word
         {
             while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
             spi_write(LCD_SPI, (freq_word >> (8*(3-i))) & 0xFF);
@@ -651,7 +655,7 @@ void main(void){
         if(mode == VOLUME)
         {
             volume_cnt += encoder_delta();
-            if(volume_cnt > 2048) volume_cnt = 2048;
+            if(volume_cnt > 2047) volume_cnt = 2047;
             if(volume_cnt < 0) volume_cnt = 0;
             volume = volume_cnt >> 6;
         }
