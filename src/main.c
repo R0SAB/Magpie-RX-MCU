@@ -638,7 +638,7 @@ void main(void){
     boot_flag = 0;
 
     lcd_send_cmd_8(0xC4);
-    lcd_send_data_8(25);
+    lcd_send_data_8(32);
 
     while(1)
     {
