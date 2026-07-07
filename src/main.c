@@ -29,7 +29,7 @@ uint8_t time_field;
 enum modulations {MOD_LSB = 0, MOD_USB = 1, MOD_AM = 2};
 enum bandwidths {BW_4K8 = 0, BW_2K8 = 1, BW_0K3 = 2};
 enum att_values {ATT0, ATT12, ATT24};
-enum modes {OPERATION, CORRECTION, VOLUME, TIME_SET};
+enum modes {OPERATION, CORRECTION, VOLUME, TIME_SET, LOCK};
 int32_t volume_cnt;
 uint8_t volume;
 
@@ -228,6 +228,19 @@ void draw_visor(void)
     bandwidth_prev = bandwidth;
 }
 
+void draw_lock()
+{
+    uint8_t size_x = 18;
+    uint8_t size_y = 24;
+
+    uint16_t lock_color = 0xC800;
+    uint16_t unlock_color = 0x0660;
+    uint16_t bg_color = 0x0025;
+
+    if(mode == LOCK) lcd_draw_bmp(295, 140, size_x, size_y, bmp_locked, 1, lock_color, bg_color);
+    else             lcd_draw_bmp(295, 140, size_x, size_y, bmp_unlocked, 1, unlock_color, bg_color);
+}
+
 uint8_t fpga_spi_send(uint32_t freq_word)
 {
         while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
@@ -258,7 +271,7 @@ uint8_t fpga_spi_send(uint32_t freq_word)
 void static_elements_draw(void)
 {
     const char* s_meter_nums[9] = {" ", "1", "3", "5", "7", "9", "+12", "+24", "+36"};
-    uint16_t nums_x = 20;
+    uint16_t nums_x = 15;
     uint16_t nums_x_step = 32;
     uint16_t nums_y = 150;
 
@@ -327,9 +340,9 @@ void s_meter_bar_draw(uint8_t s_value)
         static uint8_t s_value_prev;
         if(s_value_prev != s_value && s_value <= 15)
         {
-        lcd_fill_rect(20+nums_x_step/2, 143, 240, 3, 0x0025);
+        lcd_fill_rect(15+nums_x_step/2, 143, 240, 3, 0x0025);
         
-        lcd_fill_rect(20+nums_x_step/2, 143, s_pixels, 3, 0x055f);
+        lcd_fill_rect(15+nums_x_step/2, 143, s_pixels, 3, 0x055f);
         }
         s_value_prev = s_value;
 }
@@ -422,8 +435,8 @@ void modes_routine(uint16_t color, uint16_t bg_color)
 
     if(mode == OPERATION && mod_btn() == BTN_HLD)   // Alternate function of MOD - CORRECTION of ref frequency (press and hold)
     {
-        if(btn_delay_mod < 200) btn_delay_mod++;
-        if(btn_delay_mod == 200) mode = CORRECTION;
+        if(btn_delay_mod < 100) btn_delay_mod++;
+        if(btn_delay_mod == 100) mode = CORRECTION;
     }
     else btn_delay_mod = 0;
 
@@ -535,6 +548,24 @@ void modes_routine(uint16_t color, uint16_t bg_color)
         lcd_fill_rect(232 + 2*i, 116, 1, 6, (volume >= i) ? 0x055F:bg_color);
     }
 
+    static uint16_t lock_btn_delay;
+
+    if(!gpio_get(LOCK_PORT, LOCK_PIN))
+    {
+        if(lock_btn_delay < 100) lock_btn_delay++;
+    }
+    else lock_btn_delay = 0;
+
+    if(lock_btn_delay == 99)
+    {
+        switch(mode)
+        {
+            case OPERATION: mode = LOCK;      break;
+            case LOCK:      mode = OPERATION; break;
+        }
+    }
+
+
 }
 
 bool freq_buttons_polling(void)
@@ -642,6 +673,7 @@ void main(void){
 
     while(1)
     {
+        draw_lock();
 
         if(mode == OPERATION) freq = freq + encoder_delta()*5;
         else
@@ -658,6 +690,11 @@ void main(void){
             if(volume_cnt > 2047) volume_cnt = 2047;
             if(volume_cnt < 0) volume_cnt = 0;
             volume = volume_cnt >> 6;
+        }
+        else
+        if(mode == LOCK)
+        {
+            encoder_delta();
         }
 
         if(freq < 100000) freq = 100000;
@@ -682,7 +719,7 @@ void main(void){
         modes_routine(0x3d40, 0x0025);
 
         timestamp_int = rtc_get_counter_val();
-        if(timestamp_int != timestamp_int_prev && mode == OPERATION)
+        if(timestamp_int != timestamp_int_prev && (mode == OPERATION || mode == LOCK))
         {
             timestamp_int_prev = timestamp_int;
             timestamp = (time_t)timestamp_int;
@@ -697,7 +734,7 @@ void main(void){
 
         BKP_DR1 = (uint16_t)(freq & 0xFFFF);
         BKP_DR2 = (uint16_t)(freq >> 16);
-        
+
         
     }
 

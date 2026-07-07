@@ -1,5 +1,5 @@
 #pragma once
 #include <stdint.h>
 
-extern const uint16_t bitmap[22500];
-extern const uint16_t scale_bitmap[2][320];
+extern const uint16_t bmp_locked[];
+extern const uint16_t bmp_unlocked[];

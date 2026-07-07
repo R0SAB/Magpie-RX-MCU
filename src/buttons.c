@@ -17,6 +17,9 @@ void buttons_setup(void)
     gpio_set(MOD_PORT, MOD_PIN);
     gpio_set_mode(ATT_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, ATT_PIN); // ATT
     gpio_set(ATT_PORT, ATT_PIN);
+
+    gpio_set_mode(LOCK_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, LOCK_PIN); // ATT
+    gpio_set(LOCK_PORT, LOCK_PIN);
 }
 
 uint8_t plus_100k_btn(void)

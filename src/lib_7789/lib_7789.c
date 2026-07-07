@@ -346,6 +346,8 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* strin
         y2 = y1 + display_height - 1;
     }
 
+    while(dma_busy){}
+
     uint32_t packet_length = display_width * display_height;
     uint32_t packet_cnt = 0;
 
@@ -382,12 +384,29 @@ void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* strin
 
 }
 
-void lcd_draw_bmp(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t* bmp)
+void lcd_draw_bmp(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t* bmp, bool mask, uint16_t color, uint16_t bg_color)
 {
     uint16_t x1 = x_crtd(x);
     uint16_t y1 = y_crtd(y);
     uint16_t x2 = x1 + dx-1;
     uint16_t y2 = y1 + dy-1;
+
+    while(dma_busy){}
+
+    if(!mask)
+    {
+        for(uint32_t pixel_cnt = 0; pixel_cnt < (dx*dy); pixel_cnt++)
+        {
+            lcd_buffer[pixel_cnt] = bmp[pixel_cnt];
+        }
+    }
+    else
+    {
+        for(uint32_t pixel_cnt = 0; pixel_cnt < (dx*dy); pixel_cnt++)
+        {
+            lcd_buffer[pixel_cnt] = (bmp[pixel_cnt]) ? color : bg_color;
+        }
+    }
 
     lcd_send_cmd_8(0x2A);
     lcd_send_data_16(x1);
@@ -395,13 +414,12 @@ void lcd_draw_bmp(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t* bm
     lcd_send_cmd_8(0x2B);
     lcd_send_data_16(y1);
     lcd_send_data_16(y2);
-
     lcd_send_cmd_8(0x2C);
 
-    for(uint32_t pixel_cnt = 0; pixel_cnt < (dx*dy); pixel_cnt++)
-    {
-        lcd_send_data_16(bmp[pixel_cnt]);
-    }
+    uint32_t packet_length = dx * dy;
+
+    lcd_dma_send(packet_length);
+
 }
 
 void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t freq, bool flush)
@@ -446,6 +464,7 @@ void lcd_draw_scale(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint32_t f
         else buffer_coarse[pixel_cnt] = 0x0025;
     }
 
+    while(dma_busy){}
     
 // ############################# QWEN START ##############################
     uint8_t fine_lines = (dy < 5) ? dy : 5; // Защита, если dy < 5

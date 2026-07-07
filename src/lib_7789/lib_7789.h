@@ -8,7 +8,7 @@
 // ################# High-level fucntions (graphical elements and control) ####################
 
 void lcd_init(uint8_t orientation); // https://github.com/russhughes/st7789_mpy/blob/master/README.md#madctl-constants
-void lcd_draw_bmp(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t* bmp);
+void lcd_draw_bmp(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t* bmp, bool mask, uint16_t color, uint16_t bg_color);
 void lcd_print(uint16_t x, uint16_t y, uint8_t scale, int alignment, char* string, uint16_t font_color, uint16_t bg_color);
 void lcd_fill_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint16_t color);
 void lcd_draw_rect(uint16_t x, uint16_t y, uint16_t dx, uint16_t dy, uint8_t thick, uint16_t color);

@@ -16,6 +16,9 @@
 #define ATT_PORT GPIOB
 #define ATT_PIN GPIO5
 
+#define LOCK_PORT GPIOA
+#define LOCK_PIN GPIO12
+
 void buttons_setup(void);
 uint8_t plus_100k_btn(void);
 uint8_t minus_100k_btn(void);
