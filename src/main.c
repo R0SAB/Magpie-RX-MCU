@@ -421,15 +421,20 @@ void modes_routine(uint16_t color, uint16_t bg_color)
     }
 
     static uint16_t att_delay_mod;
+    static uint8_t vol_prev_mode;
 
-    if(mode == OPERATION && att_btn() == BTN_HLD)   // Alternate function of ATT - adjust VOLUME (press and hold)
+    if((mode == OPERATION || mode == LOCK) && att_btn() == BTN_HLD)   // Alternate function of ATT - adjust VOLUME (press and hold)
     {
-        if(att_delay_mod < 35) att_delay_mod++;
-        if(att_delay_mod == 35) mode = VOLUME;
+        if(att_delay_mod < 36) att_delay_mod++;
+        if(att_delay_mod == 35)
+        {
+            vol_prev_mode = mode;
+            mode = VOLUME;
+        }
     }
     else att_delay_mod = 0;
 
-    if(mode == VOLUME && att_btn() == BTN_RLS) mode = OPERATION;    // Exit VOLUME - upon release of ATT
+    if(mode == VOLUME && att_btn() == BTN_RLS) mode = vol_prev_mode;    // Exit VOLUME - upon release of ATT
 
     static uint16_t btn_delay_mod;
 
@@ -563,6 +568,8 @@ void modes_routine(uint16_t color, uint16_t bg_color)
             case OPERATION: mode = LOCK;      break;
             case LOCK:      mode = OPERATION; break;
         }
+
+        draw_lock();
     }
 
 
@@ -666,6 +673,8 @@ void main(void){
 
     si5351_init();
 
+    draw_lock();
+
     boot_flag = 0;
 
     lcd_send_cmd_8(0xC4);
@@ -673,7 +682,7 @@ void main(void){
 
     while(1)
     {
-        draw_lock();
+        //draw_lock();
 
         if(mode == OPERATION) freq = freq + encoder_delta()*5;
         else
