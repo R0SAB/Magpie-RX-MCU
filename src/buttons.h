@@ -2,19 +2,19 @@
 #include <stdint.h>
 
 #define P_100K_PORT GPIOB
-#define P_100K_PIN GPIO7
+#define P_100K_PIN GPIO4
 #define M_100K_PORT GPIOB
-#define M_100K_PIN GPIO6
-#define P_1M_PORT GPIOB
-#define P_1M_PIN GPIO9
+#define M_100K_PIN GPIO5
+#define P_1M_PORT GPIOA
+#define P_1M_PIN GPIO15
 #define M_1M_PORT GPIOB
-#define M_1M_PIN GPIO8
+#define M_1M_PIN GPIO9
 #define BW_PORT GPIOB
-#define BW_PIN GPIO4
-#define MOD_PORT GPIOA
-#define MOD_PIN GPIO15
+#define BW_PIN GPIO6
+#define MOD_PORT GPIOB
+#define MOD_PIN GPIO7
 #define ATT_PORT GPIOB
-#define ATT_PIN GPIO5
+#define ATT_PIN GPIO8
 
 #define LOCK_PORT GPIOA
 #define LOCK_PIN GPIO12
