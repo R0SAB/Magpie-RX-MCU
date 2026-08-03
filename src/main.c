@@ -130,9 +130,9 @@ void voltmeter_setup(void)
 
 void voltmeter_routine()
 {
-    float R_upper = 5.1e3f;
-    float R_lower = 2.7e3f;
-    float V_ref = 3e0f;
+    float R_upper = 4.3e3f;
+    float R_lower = 2.4e3f;
+    float V_ref = 3.3e0f;
 
     static char voltage_string[16];
 
@@ -635,7 +635,12 @@ bool freq_buttons_polling(void)
 void main(void){
     
     rcc_clock_setup_in_hse_8mhz_out_72mhz();
-    lcd_init(6);
+
+    rcc_periph_clock_enable(RCC_AFIO);              // Disable JTAG (to free GPIOs)
+    AFIO_MAPR = (uint32_t)(0b010 << 24);
+    rcc_periph_clock_disable(RCC_AFIO);
+
+    lcd_init(5);
     lcd_dma_setup();
     encoder_timer_init();
     buttons_setup();
@@ -660,7 +665,8 @@ void main(void){
     volume_cnt = 0;
 
     correction_ppb = (uint32_t)(BKP_DR7 << 16) | (uint32_t)(BKP_DR6);
-    if(correction_ppb < -100000 || correction_ppb > 100000) correction_ppb = 10000000;
+    if(correction_ppb < -200000) correction_ppb = -200000;
+    if(correction_ppb > 200000) correction_ppb = 200000;
 
     uint64_t ph_acc_fs = (uint64_t) 1 << 32;
 
@@ -679,6 +685,9 @@ void main(void){
 
     lcd_send_cmd_8(0xC4);
     lcd_send_data_8(32);
+
+    gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);    // ATT 12
+    gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);    // ATT 24
 
     while(1)
     {
@@ -744,7 +753,12 @@ void main(void){
         BKP_DR1 = (uint16_t)(freq & 0xFFFF);
         BKP_DR2 = (uint16_t)(freq >> 16);
 
-        
+        if(attenuator == ATT12) gpio_set(GPIOA, GPIO12);
+        else gpio_clear(GPIOA, GPIO12);
+
+        if(attenuator == ATT24) gpio_set(GPIOB, GPIO12);
+        else gpio_clear(GPIOB, GPIO12);
+
     }
 
 }

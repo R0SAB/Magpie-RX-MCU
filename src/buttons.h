@@ -2,22 +2,22 @@
 #include <stdint.h>
 
 #define P_100K_PORT GPIOB
-#define P_100K_PIN GPIO4
+#define P_100K_PIN GPIO6
 #define M_100K_PORT GPIOB
 #define M_100K_PIN GPIO5
-#define P_1M_PORT GPIOA
-#define P_1M_PIN GPIO15
+#define P_1M_PORT GPIOB
+#define P_1M_PIN GPIO8
 #define M_1M_PORT GPIOB
-#define M_1M_PIN GPIO9
-#define BW_PORT GPIOB
-#define BW_PIN GPIO6
+#define M_1M_PIN GPIO7
+#define BW_PORT GPIOA
+#define BW_PIN GPIO15
 #define MOD_PORT GPIOB
-#define MOD_PIN GPIO7
+#define MOD_PIN GPIO3
 #define ATT_PORT GPIOB
-#define ATT_PIN GPIO8
+#define ATT_PIN GPIO4
 
-#define LOCK_PORT GPIOA
-#define LOCK_PIN GPIO12
+#define LOCK_PORT GPIOB
+#define LOCK_PIN GPIO9
 
 void buttons_setup(void);
 uint8_t plus_100k_btn(void);
