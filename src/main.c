@@ -115,13 +115,13 @@ int16_t encoder_delta(void)
 
 void voltmeter_setup(void)
 {
-    gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_ANALOG, GPIO1);
+    gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_ANALOG, GPIO3);
     rcc_periph_clock_enable(RCC_ADC1);
     adc_power_off(ADC1);
     adc_disable_dma(ADC1);
     adc_disable_scan_mode(ADC1);
     adc_set_sample_time_on_all_channels(ADC1, ADC_SMPR_SMP_55DOT5CYC);
-    adc_set_regular_sequence(ADC1, 1, (uint8_t[]){ADC_CHANNEL1});
+    adc_set_regular_sequence(ADC1, 1, (uint8_t[]){ADC_CHANNEL3});
     adc_set_single_conversion_mode(ADC1);
     adc_set_right_aligned(ADC1);
     adc_power_on(ADC1);
@@ -753,11 +753,11 @@ void main(void){
         BKP_DR1 = (uint16_t)(freq & 0xFFFF);
         BKP_DR2 = (uint16_t)(freq >> 16);
 
-        if(attenuator == ATT12) gpio_set(GPIOA, GPIO12);
-        else gpio_clear(GPIOA, GPIO12);
-
-        if(attenuator == ATT24) gpio_set(GPIOB, GPIO12);
+        if(attenuator == ATT12) gpio_set(GPIOB, GPIO12);
         else gpio_clear(GPIOB, GPIO12);
+
+        if(attenuator == ATT24) gpio_set(GPIOA, GPIO12);
+        else gpio_clear(GPIOA, GPIO12);
 
     }
 
