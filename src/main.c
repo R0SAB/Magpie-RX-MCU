@@ -683,8 +683,8 @@ void main(void){
 
     boot_flag = 0;
 
-    lcd_send_cmd_8(0xC4);
-    lcd_send_data_8(32);
+    lcd_send_cmd_8(0xC3);
+    lcd_send_data_8(63);
 
     gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);    // ATT 12
     gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);    // ATT 24
