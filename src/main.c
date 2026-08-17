@@ -324,11 +324,16 @@ void s_meter_print(uint8_t s_value)
                 case 13: snprintf(s_value_string, 16, "S+24 "); break;
                 case 14: snprintf(s_value_string, 16, "S+30 "); break;
                 case 15: snprintf(s_value_string, 16, "S+36 "); break;
+                case 16: snprintf(s_value_string, 16, "OVR "); break;
                 default: snprintf(s_value_string, 16, "error");
             }
         }
 
-        lcd_print(20, 120, SCALE_2, ALIGN_LEFT, s_value_string, 0x055f, 0x0025);
+        uint16_t color;
+        if(s_value == 16) color = 0xB211;
+        else color = 0x055f;
+
+        lcd_print(20, 120, SCALE_2, ALIGN_LEFT, s_value_string, color, 0x0025);
 }
 
 void s_meter_bar_draw(uint8_t s_value)
