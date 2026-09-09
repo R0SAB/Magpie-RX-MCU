@@ -534,7 +534,7 @@ void modes_routine(uint16_t color, uint16_t bg_color)
 
     }
 
-    lcd_print(278, 70, SCALE_1, ALIGN_LEFT, " AM",(bandwidth != BW_0K3)? 0x055F:0xB211, 0x0025);
+    lcd_print(278, 70, SCALE_1, ALIGN_LEFT, "SAM",(bandwidth != BW_0K3)? 0x055F:0xB211, 0x0025);
     lcd_print(278, 85, SCALE_1, ALIGN_LEFT, "0.3",(modulation != MOD_AM)? 0x055F:0xB211, 0x0025);
 
     lcd_fill_rect(230, 79, 18, 2, (modulation == MOD_LSB) ? color:bg_color);  // MOD LSB underscore
