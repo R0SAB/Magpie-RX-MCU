@@ -255,8 +255,8 @@ spi_rx_struct fpga_spi_xfer(uint32_t freq_word, uint8_t modes_byte)
         spi_set_dff_8bit(LCD_SPI);
         gpio_clear(FPGA_CS_PORT, FPGA_CS_PIN);
 
-        uint8_t s_meter_byte = spi_xfer(LCD_SPI, modes_byte);
-        uint8_t status_byte = spi_xfer(LCD_SPI, volume);
+        uint8_t status_byte = spi_xfer(LCD_SPI, modes_byte);
+        uint8_t s_meter_byte = spi_xfer(LCD_SPI, volume);
 
         for(int i = 0; i < 4; i++)                              // Send freq word
         {
@@ -752,6 +752,13 @@ void main(void){
 
         s_meter_print(spi_rx.s_meter_byte, ovr);
         s_meter_bar_draw(spi_rx.s_meter_byte);
+
+        if(modulation == MOD_AM)        // Carrier lock indicator
+        {
+            if((spi_rx.status_byte >> 1) & 0b00000001) lcd_fill_rect(300, 70, 7, 7, 0x4ec0);
+            else lcd_fill_rect(300, 70, 7, 7, 0x5aeb);
+        }
+        else lcd_fill_rect(300, 70, 7, 7, 0x0025);
 
         modes_routine(0x3d40, 0x0025);
 
