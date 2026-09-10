@@ -33,6 +33,13 @@ enum modes {OPERATION, CORRECTION, VOLUME, TIME_SET, LOCK};
 int32_t volume_cnt;
 uint8_t volume;
 
+typedef struct
+{
+    uint8_t s_meter_byte;
+    uint8_t status_byte;
+} spi_rx_struct;
+
+
 const double adc_samp_freq = 70.56e6;
 
 #define FPGA_CS_PORT GPIOA
@@ -241,20 +248,15 @@ void draw_lock()
     else             lcd_draw_bmp(295, 140, size_x, size_y, bmp_unlocked, 1, unlock_color, bg_color);
 }
 
-uint8_t fpga_spi_send(uint32_t freq_word)
+spi_rx_struct fpga_spi_xfer(uint32_t freq_word, uint8_t modes_byte)
 {
         while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
         gpio_set(LCD_CS_PORT, LCD_CS_PIN);
         spi_set_dff_8bit(LCD_SPI);
         gpio_clear(FPGA_CS_PORT, FPGA_CS_PIN);
 
-        uint8_t fpga_agc_byte = 0;
-        uint8_t fpga_ctrl_byte = ((0b11 & bandwidth) << 2) | (0b11 & modulation);
-
-        fpga_agc_byte = spi_xfer(LCD_SPI, fpga_ctrl_byte);      // Send modes, receive AGC
-        
-        while((SPI_SR(LCD_SPI) & SPI_SR_BSY));                  // Send Volume
-        spi_write(LCD_SPI, volume);
+        uint8_t s_meter_byte = spi_xfer(LCD_SPI, modes_byte);
+        uint8_t status_byte = spi_xfer(LCD_SPI, volume);
 
         for(int i = 0; i < 4; i++)                              // Send freq word
         {
@@ -265,7 +267,13 @@ uint8_t fpga_spi_send(uint32_t freq_word)
         while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
         gpio_set(FPGA_CS_PORT, FPGA_CS_PIN);
 
-        return fpga_agc_byte;
+        spi_rx_struct spi_return;
+
+        spi_return.s_meter_byte = s_meter_byte;
+        spi_return.status_byte = status_byte;
+
+        return spi_return;
+
 }
 
 void static_elements_draw(void)
@@ -306,10 +314,12 @@ void rtc_and_bkp_init(void)
     }
 }
 
-void s_meter_print(uint8_t s_value)
+void s_meter_print(uint8_t s_value, bool ovr)
 {
     char s_value_string[16];
 
+    if(!ovr)
+    {
         if(s_value < 10)
         {
             snprintf(s_value_string, 16, "S%d   ", s_value);
@@ -324,16 +334,17 @@ void s_meter_print(uint8_t s_value)
                 case 13: snprintf(s_value_string, 16, "S+24 "); break;
                 case 14: snprintf(s_value_string, 16, "S+30 "); break;
                 case 15: snprintf(s_value_string, 16, "S+36 "); break;
-                case 16: snprintf(s_value_string, 16, "OVR "); break;
                 default: snprintf(s_value_string, 16, "error");
             }
         }
+    }
+    else snprintf(s_value_string, 16, "OVR ");
 
-        uint16_t color;
-        if(s_value == 16) color = 0xB211;
-        else color = 0x055f;
+    uint16_t color;
+    if(ovr) color = 0xB211;
+    else color = 0x055f;
 
-        lcd_print(20, 120, SCALE_2, ALIGN_LEFT, s_value_string, color, 0x0025);
+    lcd_print(20, 120, SCALE_2, ALIGN_LEFT, s_value_string, color, 0x0025);
 }
 
 void s_meter_bar_draw(uint8_t s_value)
@@ -734,10 +745,13 @@ void main(void){
         double freq_word_float = (double)ph_acc_fs/adc_samp_freq*(double)freq*(double)(1+correction_ppb*1e-9);
         uint32_t freq_word = (uint32_t)freq_word_float;
         
-        volatile uint8_t s_value = fpga_spi_send(freq_word);
-        
-        s_meter_print(s_value);
-        s_meter_bar_draw(s_value);
+        spi_rx_struct spi_rx;
+        uint8_t modes_byte = ((0b11 & bandwidth) << 2) | (0b11 & modulation);
+        spi_rx = fpga_spi_xfer(freq_word, modes_byte);
+        bool ovr = ((spi_rx.status_byte >> 0) & 0b00000001);
+
+        s_meter_print(spi_rx.s_meter_byte, ovr);
+        s_meter_bar_draw(spi_rx.s_meter_byte);
 
         modes_routine(0x3d40, 0x0025);
 
