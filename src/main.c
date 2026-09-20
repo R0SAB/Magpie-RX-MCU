@@ -32,6 +32,9 @@ enum att_values {ATT0, ATT12, ATT24};
 enum modes {OPERATION, CORRECTION, VOLUME, TIME_SET, LOCK};
 int32_t volume_cnt;
 uint8_t volume;
+bool battery_depleted;
+const uint16_t VOL_FADE_FRAMES = 500;
+uint16_t vol_fade_cnt;
 
 typedef struct
 {
@@ -161,6 +164,9 @@ void voltmeter_routine()
         
         snprintf(voltage_string, sizeof(voltage_string), "Vbat:%d.%d%dV", volt_int, volt_frac_1, volt_frac_2);
         lcd_print(35, 98, SCALE_1, ALIGN_LEFT, voltage_string, 0x055f, 0x0025);
+
+        if(volt_float < 5.9f) battery_depleted = 1;
+        if(volt_float > 6.1f) battery_depleted = 0;
     }
 }
 
@@ -705,6 +711,8 @@ void main(void){
     gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);    // ATT 12
     gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);    // ATT 24
 
+    battery_depleted = 0;
+
     while(1)
     {
         //draw_lock();
@@ -784,6 +792,14 @@ void main(void){
 
         if(attenuator == ATT24) gpio_set(GPIOA, GPIO12);
         else gpio_clear(GPIOA, GPIO12);
+
+        if(battery_depleted)
+        {
+            if(vol_fade_cnt < VOL_FADE_FRAMES) vol_fade_cnt++;
+            else vol_fade_cnt = 0;
+
+            if(vol_fade_cnt == 0 && volume > 0) volume--;
+        }
 
     }
 
