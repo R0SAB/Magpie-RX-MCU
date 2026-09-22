@@ -787,7 +787,7 @@ void main(void){
         {
             lcd_fill_rect(160, 68, 3, 7, 0x055f);   // Bar
             lcd_fill_rect(148, 68, 7, 7, corr_err_dir? 0x4ec0 : 0x0025);   // Left box
-            lcd_fill_rect(168, 68, 7, 7, ~corr_err_dir? 0x4ec0 : 0x0025);   // Right box
+            lcd_fill_rect(168, 68, 7, 7, corr_err_dir? 0x0025 : 0x4ec0);   // Right box
         }
         else lcd_fill_rect(148, 68, 27, 7, 0x0025);
 
