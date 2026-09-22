@@ -770,16 +770,26 @@ void main(void){
         uint8_t modes_byte = ((0b11 & bandwidth) << 2) | (0b11 & modulation);
         spi_rx = fpga_spi_xfer(freq_word, modes_byte);
         bool ovr = ((spi_rx.status_byte >> 0) & 0b00000001);
+        bool sam_lock = ((spi_rx.status_byte >> 1) & 0b00000001);
+        bool corr_err_dir = ((spi_rx.status_byte >> 2) & 0b00000001);
 
         s_meter_print(spi_rx.s_meter_byte, ovr);
         s_meter_bar_draw(spi_rx.s_meter_byte);
 
         if(modulation == MOD_AM)        // Carrier lock indicator
         {
-            if((spi_rx.status_byte >> 1) & 0b00000001) lcd_fill_rect(300, 70, 7, 7, 0x4ec0);
+            if(sam_lock) lcd_fill_rect(300, 70, 7, 7, 0x4ec0);
             else lcd_fill_rect(300, 70, 7, 7, 0x5aeb);
         }
         else lcd_fill_rect(300, 70, 7, 7, 0x0025);
+
+        if(mode == CORRECTION)
+        {
+            lcd_fill_rect(160, 68, 3, 7, 0x055f);   // Bar
+            lcd_fill_rect(148, 68, 7, 7, corr_err_dir? 0x4ec0 : 0x0025);   // Left box
+            lcd_fill_rect(168, 68, 7, 7, ~corr_err_dir? 0x4ec0 : 0x0025);   // Right box
+        }
+        else lcd_fill_rect(148, 68, 27, 7, 0x0025);
 
         modes_routine(0x3d40, 0x0025);
 
