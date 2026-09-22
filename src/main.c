@@ -44,6 +44,8 @@ typedef struct
 
 
 const double adc_samp_freq = 70.56e6;
+const uint16_t ENCODER_DIV = 2;
+const uint32_t ENCODER_FREQ_STEP = 10;
 
 #define FPGA_CS_PORT GPIOA
 #define FPGA_CS_PIN GPIO4
@@ -117,10 +119,21 @@ void encoder_timer_init(void)
 int16_t encoder_delta(void)
 {
     static int16_t encoder_prev;
+    static int32_t encoder_accum;
+
     int16_t encoder_curr = timer_get_counter(TIM1);
-    int16_t encoder_delta = encoder_curr - encoder_prev;
+
+    int16_t delta = encoder_curr - encoder_prev;
+
     encoder_prev = encoder_curr;
-    return encoder_delta;
+
+    encoder_accum += delta;
+
+    int16_t result = encoder_accum / ENCODER_DIV;
+
+    encoder_accum -= result * ENCODER_DIV;
+
+    return result;
 }
 
 void voltmeter_setup(void)
@@ -717,7 +730,7 @@ void main(void){
     {
         //draw_lock();
 
-        if(mode == OPERATION) freq = freq + encoder_delta()*5;
+        if(mode == OPERATION) freq = freq + encoder_delta() * ENCODER_FREQ_STEP;
         else
         if(mode == CORRECTION)
         {
@@ -728,7 +741,7 @@ void main(void){
         else
         if(mode == VOLUME)
         {
-            volume_cnt += encoder_delta();
+            volume_cnt += encoder_delta() * ENCODER_DIV;
             if(volume_cnt > 2047) volume_cnt = 2047;
             if(volume_cnt < 0) volume_cnt = 0;
             volume = volume_cnt >> 6;
