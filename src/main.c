@@ -617,7 +617,7 @@ bool freq_buttons_polling(void)
         if(plus_100k_btn() == BTN_RLS && !boot_flag)
         {
             uint32_t remainder = freq%100000;
-            if(freq > 27900000) freq = 28000000;
+            if(freq > 17900000) freq = 18000000;
             else
             {
                 if(remainder > 0) freq = freq + 100000-remainder;
@@ -630,7 +630,7 @@ bool freq_buttons_polling(void)
         {
             uint32_t remainder = freq%100000;
 
-            if(freq < 200000) freq = 100000;
+            if(freq < 600000) freq = 500000;
             else
             {
                 if(remainder > 0) freq = freq - remainder;
@@ -642,7 +642,7 @@ bool freq_buttons_polling(void)
         if(plus_1M_btn() == BTN_RLS && !boot_flag)
         {
             uint32_t remainder = freq%1000000;
-            if(freq > 27000000) freq = 28000000;
+            if(freq > 17000000) freq = 18000000;
             else
             {
                 if(remainder > 0) freq = freq + 1000000-remainder;
@@ -654,7 +654,7 @@ bool freq_buttons_polling(void)
         if(minus_1M_btn() == BTN_RLS && !boot_flag)
     {
         uint32_t remainder = freq%1000000;
-        if(freq <= 1000000) freq = 100000;
+        if(freq <= 1000000) freq = 500000;
         else
         {
             if(remainder > 0) freq = freq - remainder;
@@ -752,8 +752,8 @@ void main(void){
             encoder_delta();
         }
 
-        if(freq < 100000) freq = 100000;
-        if(freq > 28000000) freq = 28000000;
+        if(freq < 500000) freq = 500000;
+        if(freq > 18000000) freq = 18000000;
 
         flush_scale = freq_buttons_polling();
         lcd_draw_scale(0, 5, 320, 9, freq, flush_scale);
