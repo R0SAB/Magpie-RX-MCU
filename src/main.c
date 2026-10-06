@@ -730,6 +730,8 @@ void main(void){
     {
         //draw_lock();
 
+        buttons_poll();
+
         if(mode == OPERATION) freq = freq + encoder_delta() * ENCODER_FREQ_STEP;
         else
         if(mode == CORRECTION)

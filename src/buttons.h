@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <stdbool.h>
 
 #define P_100K_PORT GPIOB
 #define P_100K_PIN GPIO6
@@ -20,6 +21,7 @@
 #define LOCK_PIN GPIO9
 
 void buttons_setup(void);
+void buttons_poll(void);
 uint8_t plus_100k_btn(void);
 uint8_t minus_100k_btn(void);
 uint8_t plus_1M_btn(void);
@@ -28,4 +30,4 @@ uint8_t bw_btn(void);
 uint8_t mod_btn(void);
 uint8_t att_btn(void);
 
-enum button_states {BTN_IDL, BTN_PRS, BTN_RLS, BTN_HLD}; // Idle, Pressed, Released, Held
+enum button_states_enum {BTN_IDL, BTN_PRS, BTN_RLS, BTN_HLD}; // Idle, Pressed, Released, Held
