@@ -36,7 +36,7 @@ uint8_t volume;
 bool battery_depleted;
 const uint16_t VOL_FADE_FRAMES = 500;
 uint16_t vol_fade_cnt;
-uint32_t millis;
+volatile uint32_t millis;
 uint32_t millis_mem;
 
 typedef struct
@@ -697,6 +697,15 @@ void main(void){
     rcc_periph_clock_enable(RCC_GPIOC);
 
     buttons_setup();
+
+    lcd_dma_setup();
+    lcd_init(5);
+
+    lcd_send_cmd_8(0xC3);
+    lcd_send_data_8(63);
+
+    lcd_fill_rect(0,0,320,170,0x0025);  // Main background
+    lcd_print(161, 80, SCALE_2, ALIGN_CENTER, "Power Up...", 0x055F, 0x0025);
     
     gpio_set_mode(PWR_HLD_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, PWR_HLD_PIN);
 
@@ -708,7 +717,7 @@ void main(void){
 
         if(pwr_btn() == BTN_HLD)
         {   
-            if((millis - millis_mem) > 2000)
+            if((millis - millis_mem) > 3000)
             {
                 gpio_set(PWR_HLD_PORT, PWR_HLD_PIN);
                 break;
@@ -718,8 +727,8 @@ void main(void){
 
     
 
-    lcd_init(5);
-    lcd_dma_setup();
+    //lcd_init(5);
+    //lcd_dma_setup();
     encoder_timer_init();
     //buttons_setup();
     rtc_and_bkp_init();

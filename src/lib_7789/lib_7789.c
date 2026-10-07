@@ -102,9 +102,9 @@ void lcd_spi_setup(void)
 void lcd_reset(void)
 {
     gpio_clear(LCD_RESET_PORT, LCD_RESET_PIN);
-    delay(1000000);
+    delay(100000);
     gpio_set(LCD_RESET_PORT, LCD_RESET_PIN);
-    delay(1000000);
+    delay(100000);
 }
 
 void lcd_send_cmd_8(uint8_t cmd)
