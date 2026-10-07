@@ -185,8 +185,8 @@ void voltmeter_routine()
         snprintf(voltage_string, sizeof(voltage_string), "Vbat:%d.%d%dV", volt_int, volt_frac_1, volt_frac_2);
         lcd_print(35, 98, SCALE_1, ALIGN_LEFT, voltage_string, 0x055f, 0x0025);
 
-        if(volt_float < 5.9f) battery_depleted = 1;
-        if(volt_float > 6.1f) battery_depleted = 0;
+        if(volt_float < 6.1f) battery_depleted = 1;
+        if(volt_float > 6.2f) battery_depleted = 0;
     }
 }
 
