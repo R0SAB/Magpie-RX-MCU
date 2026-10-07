@@ -677,9 +677,47 @@ bool freq_buttons_polling(void)
 
 void shutdown_timer()
 {
+    int32_t rtc_curr = rtc_get_counter_val();
     static int32_t rtc_prev;
+    static int32_t secs_shutdown;
 
-    if(encoder_delta != 0) shutdown_cancel = 1;
+    if(encoder_delta != 0)
+    {
+        shutdown_cancel = 1;
+        if(pwr_btn() == BTN_HLD) secs_shutdown += encoder_delta;
+        if(secs_shutdown < 0) secs_shutdown = 0;
+        if(secs_shutdown > 18000) secs_shutdown = 18000;
+    }
+    else
+    if(pwr_btn() == BTN_IDL)
+    {
+        if(rtc_curr != rtc_prev)
+        {
+            secs_shutdown--;
+            if(secs_shutdown < 60 && secs_shutdown > 1 && volume > 0)
+            {
+                volume--;
+                volume_cnt -= (1 << 6);
+            }
+        }
+    }
+
+    rtc_prev = rtc_curr;
+
+    char print_buffer[20];
+
+    if(secs_shutdown > 0)
+    {
+        snprintf(print_buffer, sizeof(print_buffer), "OFF: %d min  ", secs_shutdown/60);
+        lcd_print(80, 115, SCALE_1, ALIGN_LEFT, print_buffer, 0x055f, 0x0025);
+    }
+    else lcd_fill_rect(80, 115, 72, 8, 0x0025);
+
+    if(secs_shutdown == 1 && pwr_btn() != BTN_HLD)
+    {
+        gpio_clear(PWR_HLD_PORT, PWR_HLD_PIN);
+        while(1){};
+    };
 
 }
 
