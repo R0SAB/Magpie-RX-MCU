@@ -679,6 +679,8 @@ void shutdown_timer()
 {
     static int32_t rtc_prev;
 
+    if(encoder_delta != 0) shutdown_cancel = 1;
+
 }
 
 void sys_tick_handler(void)
@@ -817,7 +819,9 @@ void main(void){
             }
         }
 
-        if(mode == OPERATION) freq = freq + encoder_delta * ENCODER_FREQ_STEP;
+        shutdown_timer();
+
+        if(mode == OPERATION && pwr_btn() == BTN_IDL) freq = freq + encoder_delta * ENCODER_FREQ_STEP;
         else
         if(mode == CORRECTION)
         {
