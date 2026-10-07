@@ -681,9 +681,9 @@ void sys_tick_handler(void)
 
 void main(void){
     
-    rcc_clock_setup_in_hsi_out_48mhz();
+    //rcc_clock_setup_in_hsi_out_48mhz();
 
-    systick_set_frequency(1000, rcc_ahb_frequency);
+    systick_set_frequency(1000, 8000000);
     systick_clear();
     systick_interrupt_enable();
     systick_counter_enable();
