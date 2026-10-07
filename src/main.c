@@ -681,9 +681,9 @@ void sys_tick_handler(void)
 
 void main(void){
     
-    //rcc_clock_setup_in_hsi_out_48mhz();
+    rcc_clock_setup_in_hsi_out_48mhz();
 
-    systick_set_frequency(1000, 8000000);
+    systick_set_frequency(1000, rcc_ahb_frequency);
     systick_clear();
     systick_interrupt_enable();
     systick_counter_enable();
@@ -770,15 +770,20 @@ void main(void){
 
     boot_flag = 0;
 
-    lcd_send_cmd_8(0xC3);
-    lcd_send_data_8(63);
-
     gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);    // ATT 12
     gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);    // ATT 24
 
     battery_depleted = 0;
 
+    rcc_osc_on(RCC_HSI);
+    rcc_wait_for_osc_ready(RCC_HSI);
+    rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_HSICLK);
+    while (RCC_CFGR & RCC_CFGR_SWS) {}
+    rcc_osc_off(RCC_PLL);
+    while (rcc_is_osc_ready(RCC_PLL)) {}
     rcc_clock_setup_in_hse_8mhz_out_72mhz();
+
+    systick_set_frequency(1000, rcc_ahb_frequency);
 
     while(1)
     {
