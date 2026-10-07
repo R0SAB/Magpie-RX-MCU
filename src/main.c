@@ -50,6 +50,10 @@ const uint32_t ENCODER_FREQ_STEP = 10;
 #define FPGA_CS_PORT GPIOA
 #define FPGA_CS_PIN GPIO4
 
+#define PWR_HLD_PORT GPIOA
+#define PWR_HLD_PIN GPIO1
+
+
 enum time_modes {SEC, MIN, HOUR, DAY, MONTH, YEAR};
 char time_string[32];
 char date_string[32];
@@ -669,16 +673,37 @@ bool freq_buttons_polling(void)
 
 void main(void){
     
-    rcc_clock_setup_in_hse_8mhz_out_72mhz();
+    rcc_clock_setup_in_hsi_out_48mhz;
 
     rcc_periph_clock_enable(RCC_AFIO);              // Disable JTAG (to free GPIOs)
     AFIO_MAPR = (uint32_t)(0b010 << 24);
     rcc_periph_clock_disable(RCC_AFIO);
 
+    rcc_periph_clock_enable(RCC_GPIOA);
+    rcc_periph_clock_enable(RCC_GPIOB);
+    rcc_periph_clock_enable(RCC_GPIOC);
+
+    buttons_setup();
+    
+    gpio_set_mode(PWR_HLD_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, PWR_HLD_PIN);
+
+    while(1)
+    {
+        buttons_poll();
+        
+        if(pwr_btn() == BTN_HLD)
+        {   
+            gpio_set(GPIOA, GPIO1);
+            break;
+        }
+    }
+
+    rcc_clock_setup_in_hse_8mhz_out_72mhz();
+
     lcd_init(5);
     lcd_dma_setup();
     encoder_timer_init();
-    buttons_setup();
+    //buttons_setup();
     rtc_and_bkp_init();
     i2c_setup();
     voltmeter_setup();

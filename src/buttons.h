@@ -20,6 +20,9 @@
 #define LOCK_PORT GPIOB
 #define LOCK_PIN GPIO9
 
+#define PWR_PORT GPIOA
+#define PWR_PIN GPIO0
+
 void buttons_setup(void);
 void buttons_poll(void);
 uint8_t plus_100k_btn(void);
@@ -29,5 +32,7 @@ uint8_t minus_1M_btn(void);
 uint8_t bw_btn(void);
 uint8_t mod_btn(void);
 uint8_t att_btn(void);
+uint8_t lock_btn(void);
+uint8_t pwr_btn(void);
 
 enum button_states_enum {BTN_IDL, BTN_PRS, BTN_RLS, BTN_HLD}; // Idle, Pressed, Released, Held

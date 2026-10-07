@@ -1,7 +1,7 @@
 #include "buttons.h"
 #include <libopencm3/stm32/gpio.h>
 
-enum button_indexes {MOD_ID, BW_ID, ATT_ID, M_100K_ID, P_100K_ID, M_1M_ID, P_1M_ID, LOCK_ID, BTN_COUNT};
+enum button_indexes {MOD_ID, BW_ID, ATT_ID, M_100K_ID, P_100K_ID, M_1M_ID, P_1M_ID, LOCK_ID, PWR_ID, BTN_COUNT};        // PWR is active HIGH (unlike the rest) 
 bool btn_prevs[BTN_COUNT];
 bool btn_currs[BTN_COUNT];
 uint8_t btn_states[BTN_COUNT];
@@ -23,12 +23,17 @@ void buttons_setup(void)
     gpio_set_mode(ATT_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, ATT_PIN); // ATT
     gpio_set(ATT_PORT, ATT_PIN);
 
-    gpio_set_mode(LOCK_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, LOCK_PIN); // ATT
+    gpio_set_mode(LOCK_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, LOCK_PIN); // LOCK
     gpio_set(LOCK_PORT, LOCK_PIN);
+
+    gpio_set_mode(PWR_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, PWR_PIN); // PWR, active HIGH
+    gpio_clear(PWR_PORT, PWR_PIN);
+
 
     for(int i = 0; i < BTN_COUNT; ++i)
     {
-        btn_prevs[i] = true;
+        if(i == PWR_ID) btn_prevs[i] = false;
+        else btn_prevs[i] = true;
     }
 }
 
@@ -43,16 +48,31 @@ void buttons_poll(void)
     btn_currs[M_1M_ID] = gpio_get(M_1M_PORT, M_1M_PIN);
     btn_currs[P_1M_ID] = gpio_get(P_1M_PORT, P_1M_PIN);
     btn_currs[LOCK_ID] = gpio_get(LOCK_PORT, LOCK_PIN);
+    btn_currs[PWR_ID] = gpio_get(PWR_PORT, PWR_PIN);
 
     for (int i = 0; i < BTN_COUNT; ++i)
     {
-        if (!btn_currs[i])
+        if(i != PWR_ID)
         {
-            btn_states[i] = btn_prevs[i] ? BTN_PRS : BTN_HLD;
+            if (!btn_currs[i])
+            {
+                btn_states[i] = btn_prevs[i] ? BTN_PRS : BTN_HLD;
+            }
+            else
+            {
+                btn_states[i] = btn_prevs[i] ? BTN_IDL : BTN_RLS;
+            }
         }
         else
         {
-            btn_states[i] = btn_prevs[i] ? BTN_IDL : BTN_RLS;
+            if (btn_currs[i])
+            {
+                btn_states[i] = !btn_prevs[i] ? BTN_PRS : BTN_HLD;
+            }
+            else
+            {
+                btn_states[i] = !btn_prevs[i] ? BTN_IDL : BTN_RLS;
+            }
         }
 
         btn_prevs[i] = btn_currs[i];
@@ -95,4 +115,14 @@ uint8_t mod_btn(void)
 uint8_t bw_btn(void)
 {
     return btn_states[BW_ID];
+}
+
+uint8_t lock_btn(void)
+{
+    return btn_states[LOCK_ID];
+}
+
+uint8_t pwr_btn(void)
+{
+    return btn_states[PWR_ID];
 }
