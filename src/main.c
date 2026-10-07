@@ -38,6 +38,7 @@ const uint16_t VOL_FADE_FRAMES = 500;
 uint16_t vol_fade_cnt;
 volatile uint32_t millis;
 uint32_t millis_mem;
+bool shutdown_cancel;
 
 typedef struct
 {
@@ -785,13 +786,32 @@ void main(void){
 
     systick_set_frequency(1000, rcc_ahb_frequency);
 
+    shutdown_cancel = 1;
+
     while(1)
     {
         //draw_lock();
 
         buttons_poll();
 
-        if(pwr_btn() == BTN_PRS) gpio_clear(PWR_HLD_PORT, PWR_HLD_PIN);
+        //if(pwr_btn() == BTN_PRS) gpio_clear(PWR_HLD_PORT, PWR_HLD_PIN);
+
+        if(pwr_btn() == BTN_PRS)
+        {
+            millis_mem = millis;
+            shutdown_cancel = 0;
+        }
+
+        if(pwr_btn() == BTN_HLD && !shutdown_cancel)
+        {
+            if((millis - millis_mem) > 2000)
+            {
+                lcd_fill_rect(0,0,320,170,0x0025);  // Main background
+                lcd_print(161, 80, SCALE_2, ALIGN_CENTER, "Power Down", 0x055F, 0x0025);
+                gpio_clear(PWR_HLD_PORT, PWR_HLD_PIN);
+                while(1){}
+            }
+        }
 
         if(mode == OPERATION) freq = freq + encoder_delta() * ENCODER_FREQ_STEP;
         else
