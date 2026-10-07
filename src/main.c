@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <libopencm3/stm32/flash.h>
 #include <libopencm3/stm32/adc.h>
+#include <libopencm3/cm3/systick.h>
 #include "si5351_config.h"
 
 bool boot_flag = 1;
@@ -35,6 +36,8 @@ uint8_t volume;
 bool battery_depleted;
 const uint16_t VOL_FADE_FRAMES = 500;
 uint16_t vol_fade_cnt;
+uint32_t millis;
+uint32_t millis_mem;
 
 typedef struct
 {
@@ -671,9 +674,19 @@ bool freq_buttons_polling(void)
     
 }
 
+void sys_tick_handler(void)
+{
+    millis++;
+}
+
 void main(void){
     
     rcc_clock_setup_in_hsi_out_48mhz;
+
+    systick_set_frequency(1000, rcc_ahb_frequency);
+    systick_clear();
+    systick_interrupt_enable();
+    systick_counter_enable();
 
     rcc_periph_clock_enable(RCC_AFIO);              // Disable JTAG (to free GPIOs)
     AFIO_MAPR = (uint32_t)(0b010 << 24);
@@ -691,10 +704,15 @@ void main(void){
     {
         buttons_poll();
         
+        if(pwr_btn() == BTN_PRS) millis_mem = millis;
+
         if(pwr_btn() == BTN_HLD)
         {   
-            gpio_set(GPIOA, GPIO1);
-            break;
+            if((millis - millis_mem) > 2000)
+            {
+                gpio_set(PWR_HLD_PORT, PWR_HLD_PIN);
+                break;
+            }
         }
     }
 
@@ -850,6 +868,9 @@ void main(void){
 
             if(vol_fade_cnt == 0 && volume > 0) volume--;
         }
+
+        //if(pwr_btn == BTN_PRS) gpio_clear(PWR_HLD_PORT, PWR_HLD_PIN);
+
 
     }
 
