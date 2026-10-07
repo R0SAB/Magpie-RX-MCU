@@ -775,6 +775,8 @@ void main(void){
 
         buttons_poll();
 
+        if(pwr_btn() == BTN_PRS) gpio_clear(PWR_HLD_PORT, PWR_HLD_PIN);
+
         if(mode == OPERATION) freq = freq + encoder_delta() * ENCODER_FREQ_STEP;
         else
         if(mode == CORRECTION)
@@ -868,9 +870,6 @@ void main(void){
 
             if(vol_fade_cnt == 0 && volume > 0) volume--;
         }
-
-        //if(pwr_btn == BTN_PRS) gpio_clear(PWR_HLD_PORT, PWR_HLD_PIN);
-
 
     }
 
