@@ -681,7 +681,7 @@ void sys_tick_handler(void)
 
 void main(void){
     
-    rcc_clock_setup_in_hsi_out_48mhz;
+    rcc_clock_setup_in_hsi_out_48mhz();
 
     systick_set_frequency(1000, rcc_ahb_frequency);
     systick_clear();
@@ -716,7 +716,7 @@ void main(void){
         }
     }
 
-    rcc_clock_setup_in_hse_8mhz_out_72mhz();
+    
 
     lcd_init(5);
     lcd_dma_setup();
@@ -768,6 +768,8 @@ void main(void){
     gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);    // ATT 24
 
     battery_depleted = 0;
+
+    rcc_clock_setup_in_hse_8mhz_out_72mhz();
 
     while(1)
     {
