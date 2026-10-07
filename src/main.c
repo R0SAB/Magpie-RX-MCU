@@ -39,6 +39,7 @@ uint16_t vol_fade_cnt;
 volatile uint32_t millis;
 uint32_t millis_mem;
 bool shutdown_cancel;
+int16_t encoder_delta;
 
 typedef struct
 {
@@ -124,7 +125,7 @@ void encoder_timer_init(void)
     timer_enable_counter(TIM1);
 }
 
-int16_t encoder_delta(void)
+int16_t encoder_poll(void)
 {
     static int16_t encoder_prev;
     static int32_t encoder_accum;
@@ -538,7 +539,6 @@ void modes_routine(uint16_t color, uint16_t bg_color)
             }
         }
 
-        //time_struct.tm_sec += encoder_delta();
         mktime(&time_struct);
 
         lcd_fill_rect(20, 78, 12, 1, (time_field ==  HOUR)? color : bg_color);
@@ -675,6 +675,12 @@ bool freq_buttons_polling(void)
     
 }
 
+void shutdown_timer()
+{
+    static int32_t rtc_prev;
+
+}
+
 void sys_tick_handler(void)
 {
     millis++;
@@ -790,11 +796,9 @@ void main(void){
 
     while(1)
     {
-        //draw_lock();
 
         buttons_poll();
-
-        //if(pwr_btn() == BTN_PRS) gpio_clear(PWR_HLD_PORT, PWR_HLD_PIN);
+        encoder_delta = encoder_poll();
 
         if(pwr_btn() == BTN_PRS)
         {
@@ -813,27 +817,23 @@ void main(void){
             }
         }
 
-        if(mode == OPERATION) freq = freq + encoder_delta() * ENCODER_FREQ_STEP;
+        if(mode == OPERATION) freq = freq + encoder_delta * ENCODER_FREQ_STEP;
         else
         if(mode == CORRECTION)
         {
-            correction_ppb += encoder_delta();
+            correction_ppb += encoder_delta;
             BKP_DR6 = (uint16_t)(correction_ppb & 0xFFFF);
             BKP_DR7 = (uint16_t)(correction_ppb >> 16);
         }
         else
         if(mode == VOLUME)
         {
-            volume_cnt += encoder_delta() * ENCODER_DIV;
+            volume_cnt += encoder_delta * ENCODER_DIV;
             if(volume_cnt > 2047) volume_cnt = 2047;
             if(volume_cnt < 0) volume_cnt = 0;
             volume = volume_cnt >> 6;
         }
-        else
-        if(mode == LOCK)
-        {
-            encoder_delta();
-        }
+        
 
         if(freq < 500000) freq = 500000;
         if(freq > 18000000) freq = 18000000;
