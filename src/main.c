@@ -383,7 +383,7 @@ void s_meter_bar_draw(uint8_t s_value)
         static uint8_t s_value_prev;
         if(s_value_prev != s_value && s_value <= 15)
         {
-        lcd_fill_rect(15+nums_x_step/2, 143, 240, 3, 0x0025);
+        lcd_fill_rect(15+nums_x_step/2+s_pixels, 143, 240-s_pixels, 3, 0x0025);
         
         lcd_fill_rect(15+nums_x_step/2, 143, s_pixels, 3, 0x055f);
         }
