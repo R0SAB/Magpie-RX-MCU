@@ -625,7 +625,7 @@ bool freq_buttons_polling(void)
         if(plus_100k_btn() == BTN_RLS && !boot_flag)
         {
             uint32_t remainder = freq%100000;
-            if(freq > 17900000) freq = 18000000;
+            if(freq > 21900000) freq = 22000000;
             else
             {
                 if(remainder > 0) freq = freq + 100000-remainder;
@@ -650,7 +650,7 @@ bool freq_buttons_polling(void)
         if(plus_1M_btn() == BTN_RLS && !boot_flag)
         {
             uint32_t remainder = freq%1000000;
-            if(freq > 17000000) freq = 18000000;
+            if(freq > 21000000) freq = 22000000;
             else
             {
                 if(remainder > 0) freq = freq + 1000000-remainder;
@@ -878,7 +878,7 @@ void main(void){
         
 
         if(freq < 500000) freq = 500000;
-        if(freq > 18000000) freq = 18000000;
+        if(freq > 22000000) freq = 22000000;
 
         flush_scale = freq_buttons_polling();
         lcd_draw_scale(0, 5, 320, 9, freq, flush_scale);
