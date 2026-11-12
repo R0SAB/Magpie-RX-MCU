@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "lib_7789.h"
 #include "bmp.h"
 #include <libopencm3/stm32/rcc.h>
@@ -34,12 +35,77 @@ enum modes {OPERATION, CORRECTION, VOLUME, TIME_SET, LOCK};
 int32_t volume_cnt;
 uint8_t volume;
 bool battery_depleted;
-const uint16_t VOL_FADE_FRAMES = 500;
-uint16_t vol_fade_cnt;
+enum { LOOP_PERIOD_MS = 10, VOL_FADE_MS = 5000 };
+/* LCD transfers are asynchronous; shared SPI must wait for DMA as well. */
+extern volatile bool dma_busy;
 volatile uint32_t millis;
 uint32_t millis_mem;
 bool shutdown_cancel;
 int16_t encoder_delta;
+
+/* Cache rendered text, including its colour. Each slot has fixed coordinates,
+ * scale and alignment. Do not use these slots for overlapping screen regions. */
+enum text_slots { TEXT_MAIN, TEXT_SMETER, TEXT_TIME, TEXT_DATE,
+                  TEXT_VOLTAGE, TEXT_SHUTDOWN, TEXT_SLOT_COUNT };
+
+static void print_changed(enum text_slots slot, uint16_t x, uint16_t y,
+                          uint8_t scale, int alignment, const char *text,
+                          uint16_t color, uint16_t bg)
+{
+    static struct {
+        bool valid;
+        uint16_t color;
+        char text[64];
+    } cache[TEXT_SLOT_COUNT];
+
+    if(cache[slot].valid && cache[slot].color == color &&
+       strcmp(cache[slot].text, text) == 0) return;
+
+    size_t old_length = strlen(cache[slot].text);
+    size_t new_length = strlen(text);
+    /* lcd_print only paints the new text bounds. Clear the previous bounds
+     * when their width changes, including centred strings and disappearing text. */
+    if(cache[slot].valid && old_length != new_length && old_length != 0)
+    {
+        uint16_t width = 6 * scale * old_length;
+        uint16_t left = (alignment == ALIGN_CENTER) ? x - width / 2 : x;
+        lcd_fill_rect(left, y, width, 7 * scale, bg);
+    }
+    if(new_length != 0)
+        lcd_print(x, y, scale, alignment, (char *)text, color, bg);
+
+    snprintf(cache[slot].text, sizeof(cache[slot].text), "%s", text);
+    cache[slot].color = color;
+    cache[slot].valid = true;
+}
+
+typedef struct {
+    uint32_t started;
+    bool active;
+    bool fired;
+} hold_timer;
+
+/* One event per continuous hold, independent of drawing time. */
+static bool held_once(hold_timer *timer, bool held, uint32_t now, uint32_t delay)
+{
+    if(!held)
+    {
+        timer->active = false;
+        timer->fired = false;
+        return false;
+    }
+    if(!timer->active)
+    {
+        timer->started = now;
+        timer->active = true;
+    }
+    if(!timer->fired && (uint32_t)(now - timer->started) >= delay)
+    {
+        timer->fired = true;
+        return true;
+    }
+    return false;
+}
 
 typedef struct
 {
@@ -168,14 +234,24 @@ void voltmeter_routine()
 
     static char voltage_string[16];
 
-    static uint8_t frame_counter;
-    if(frame_counter < 19) frame_counter++;
-    else frame_counter = 0;
+    static uint32_t started;
+    static bool initialized;
+    static bool pending;
+    uint32_t now = millis;
 
-    if(frame_counter == 0) adc_start_conversion_direct(ADC1);
-
-    if(frame_counter == 1)
+    if(!pending && (!initialized || (uint32_t)(now - started) >= 200))
     {
+        adc_start_conversion_direct(ADC1);
+        started = now;
+        initialized = true;
+        pending = true;
+        return;
+    }
+
+    /* Read on a later pass, after the single conversion has completed. */
+    if(pending && (uint32_t)(now - started) >= 1)
+    {
+        pending = false;
         uint16_t adc_value = adc_read_regular(ADC1);
 
         float volt_float = (float)adc_value / (float)4096 * V_ref * (1.0f + R_upper / R_lower);
@@ -185,7 +261,7 @@ void voltmeter_routine()
         uint8_t volt_frac_2 = (V_mv % 100) / 10;
         
         snprintf(voltage_string, sizeof(voltage_string), "Vbat:%d.%d%dV", volt_int, volt_frac_1, volt_frac_2);
-        lcd_print(35, 98, SCALE_1, ALIGN_LEFT, voltage_string, 0x055f, 0x0025);
+        print_changed(TEXT_VOLTAGE, 35, 98, SCALE_1, ALIGN_LEFT, voltage_string, 0x055f, 0x0025);
 
         if(volt_float < 6.1f) battery_depleted = 1;
         if(volt_float > 6.2f) battery_depleted = 0;
@@ -198,10 +274,9 @@ void lcd_print_freq_main(uint32_t freq)
     uint16_t freq_frac_1 = (freq%1000)/100;
     uint16_t freq_frac_2 = (freq%100)/10;
     
-    static uint8_t mode_prev;
 
     static char print_buffer[64];
-    if(mode == OPERATION) snprintf(print_buffer, sizeof(print_buffer), " %d.%d%d kHz ", freq_int, freq_frac_1, freq_frac_2);
+    if(mode == OPERATION || mode == LOCK || mode == VOLUME) snprintf(print_buffer, sizeof(print_buffer), " %d.%d%d kHz ", freq_int, freq_frac_1, freq_frac_2);
     else
     if(mode == CORRECTION)
     {
@@ -213,11 +288,7 @@ void lcd_print_freq_main(uint32_t freq)
     else
     if(mode == TIME_SET) snprintf(print_buffer, sizeof(print_buffer), "    Time set...    ");
 
-    if(mode_prev == CORRECTION && mode == OPERATION) snprintf(print_buffer, sizeof(print_buffer), "                      ");
-
-    lcd_print(161, 40, SCALE_2, ALIGN_CENTER, print_buffer, 0x055F, 0x0025);
-
-    mode_prev = mode;
+    print_changed(TEXT_MAIN, 161, 40, SCALE_2, ALIGN_CENTER, print_buffer, 0x055F, 0x0025);
 }
 
 void draw_visor(void)
@@ -278,6 +349,7 @@ void draw_lock()
 
 spi_rx_struct fpga_spi_xfer(uint32_t freq_word, uint8_t modes_byte)
 {
+        while(dma_busy) {}
         while((SPI_SR(LCD_SPI) & SPI_SR_BSY));
         gpio_set(LCD_CS_PORT, LCD_CS_PIN);
         spi_set_dff_8bit(LCD_SPI);
@@ -372,31 +444,27 @@ void s_meter_print(uint8_t s_value, bool ovr)
     if(ovr) color = 0xB211;
     else color = 0x055f;
 
-    lcd_print(20, 120, SCALE_2, ALIGN_LEFT, s_value_string, color, 0x0025);
+    print_changed(TEXT_SMETER, 20, 120, SCALE_2, ALIGN_LEFT, s_value_string, color, 0x0025);
 }
 
 void s_meter_bar_draw(uint8_t s_value)
 {
-    const uint8_t nums_x_step = 32;
-
-    uint16_t s_pixels = (nums_x_step/2)*s_value;
-
-        static uint8_t s_value_prev;
-        if(s_value_prev != s_value && s_value <= 15)
-        {
-        lcd_fill_rect(15+nums_x_step/2+s_pixels, 143, 240-s_pixels, 3, 0x0025);
-        
-        lcd_fill_rect(15+nums_x_step/2, 143, s_pixels, 3, 0x055f);
-        }
-        s_value_prev = s_value;
+    static uint8_t previous;
+    /* The screen background already represents zero on first draw. */
+    if(s_value > 15 || s_value == previous) return;
+    uint8_t lower = s_value < previous ? s_value : previous;
+    uint8_t upper = s_value > previous ? s_value : previous;
+    lcd_fill_rect(31 + 16 * lower, 143, 16 * (upper - lower), 3,
+                  s_value > previous ? 0x055f : 0x0025);
+    previous = s_value;
 }
 
 void lcd_print_time(void)
 {
     strftime(time_string, sizeof(time_string), "%H:%M:%S UTC ", &time_struct);
     strftime(date_string, sizeof(date_string), "%d-%m-%Y" , &time_struct);
-    lcd_print(20, 70, SCALE_1, ALIGN_LEFT, time_string, 0x055F, 0x0025);
-    lcd_print(20, 80, SCALE_1, ALIGN_LEFT, date_string, 0x055F, 0x0025);
+    print_changed(TEXT_TIME, 20, 70, SCALE_1, ALIGN_LEFT, time_string, 0x055F, 0x0025);
+    print_changed(TEXT_DATE, 20, 80, SCALE_1, ALIGN_LEFT, date_string, 0x055F, 0x0025);
 }
 
 void modes_routine(uint16_t color, uint16_t bg_color)
@@ -414,9 +482,6 @@ void modes_routine(uint16_t color, uint16_t bg_color)
                 default: modulation = MOD_LSB;
             }
 
-            //lcd_fill_rect(230, 89, 18, 2, (modulation == MOD_LSB) ? color:bg_color);  // MOD LSB
-            //lcd_fill_rect(254, 89, 18, 2, (modulation == MOD_USB) ? color:bg_color);  // MOD USB
-            //lcd_fill_rect(278, 89, 18, 2, (modulation == MOD_AM)  ? color:bg_color);  // MOD AM
 
             BKP_DR3 = (uint16_t)modulation & 0x00FF;
         }
@@ -431,9 +496,6 @@ void modes_routine(uint16_t color, uint16_t bg_color)
                 default: bandwidth = BW_4K8;
             }
 
-            //lcd_fill_rect(230, 104, 18, 2, (bandwidth == BW_4K8) ? color:bg_color);   // BW 4K8
-            //lcd_fill_rect(254, 104, 18, 2, (bandwidth == BW_2K8) ? color:bg_color);   // BW 2k8
-            //lcd_fill_rect(278, 104, 18, 2, (bandwidth == BW_0K3) ? color:bg_color);   // BW 0K3
 
             BKP_DR4 = (uint16_t)bandwidth & 0x00FF;
         }
@@ -448,9 +510,6 @@ void modes_routine(uint16_t color, uint16_t bg_color)
                 default: attenuator = ATT0;
             }
 
-            //lcd_fill_rect(230, 119, 18, 2, (attenuator ==  ATT0) ? color:bg_color);   // ATT 0
-            //lcd_fill_rect(254, 119, 18, 2, (attenuator == ATT12) ? color:bg_color);   // ATT -12
-            //lcd_fill_rect(278, 119, 18, 2, (attenuator == ATT24) ? color:bg_color);   // ATT -24
 
             BKP_DR5 = (uint16_t)attenuator & 0x00FF;
         }
@@ -464,45 +523,28 @@ void modes_routine(uint16_t color, uint16_t bg_color)
         attenuator = BKP_DR5;
     }
 
-    static uint16_t att_delay_mod;
+    uint32_t now = millis;
+    static hold_timer att_hold, mod_hold, bw_hold, lock_hold;
     static uint8_t vol_prev_mode;
 
-    if((mode == OPERATION || mode == LOCK) && att_btn() == BTN_HLD)   // Alternate function of ATT - adjust VOLUME (press and hold)
+    if(held_once(&att_hold,
+                 (mode == OPERATION || mode == LOCK) && att_btn() == BTN_HLD,
+                 now, 350))
     {
-        if(att_delay_mod < 36) att_delay_mod++;
-        if(att_delay_mod == 35)
-        {
-            vol_prev_mode = mode;
-            mode = VOLUME;
-        }
+        vol_prev_mode = mode;
+        mode = VOLUME;
     }
-    else att_delay_mod = 0;
+    if(mode == VOLUME && att_btn() == BTN_RLS) mode = vol_prev_mode;
 
-    if(mode == VOLUME && att_btn() == BTN_RLS) mode = vol_prev_mode;    // Exit VOLUME - upon release of ATT
+    if(held_once(&mod_hold, mode == OPERATION && mod_btn() == BTN_HLD, now, 1000))
+        mode = CORRECTION;
+    if(mode == CORRECTION && mod_btn() == BTN_RLS) mode = OPERATION;
 
-    static uint16_t btn_delay_mod;
-
-    if(mode == OPERATION && mod_btn() == BTN_HLD)   // Alternate function of MOD - CORRECTION of ref frequency (press and hold)
+    if(held_once(&bw_hold, mode == OPERATION && bw_btn() == BTN_HLD, now, 2000))
     {
-        if(btn_delay_mod < 100) btn_delay_mod++;
-        if(btn_delay_mod == 100) mode = CORRECTION;
+        mode = TIME_SET;
+        time_field = HOUR;
     }
-    else btn_delay_mod = 0;
-
-    if(mode == CORRECTION && mod_btn() == BTN_RLS) mode = OPERATION;    // Exit CORRECTION - upon release of MOD
-   
-    static uint16_t btn_delay_bw;
-
-    if(mode == OPERATION && bw_btn() == BTN_HLD)    // Alternate function of BW - long press and release to enter TIME_SET
-    {
-        if(btn_delay_bw < 200) btn_delay_bw++;
-        if(btn_delay_bw == 200)
-        {
-            mode = TIME_SET;
-            time_field = HOUR;
-        }
-    }
-    else btn_delay_bw = 0;
 
     if(mode == TIME_SET && bw_btn() == BTN_PRS)     // Exit TIME_SET - single press of BW
     {
@@ -513,12 +555,6 @@ void modes_routine(uint16_t color, uint16_t bg_color)
         rtc_set_counter_val(timestamp_int);
 
 
-        lcd_fill_rect(20, 78, 12, 1, bg_color);
-        lcd_fill_rect(38, 78, 12, 1, bg_color);
-        lcd_fill_rect(56, 78, 12, 1, bg_color);
-        lcd_fill_rect(20, 88, 12, 1, bg_color);
-        lcd_fill_rect(38, 88, 12, 1, bg_color);
-        lcd_fill_rect(56, 88, 24, 1, bg_color);
     }
     
 
@@ -538,15 +574,6 @@ void modes_routine(uint16_t color, uint16_t bg_color)
                 default: time_field = SEC;
             }
         }
-
-        mktime(&time_struct);
-
-        lcd_fill_rect(20, 78, 12, 1, (time_field ==  HOUR)? color : bg_color);
-        lcd_fill_rect(38, 78, 12, 1, (time_field ==   MIN)? color : bg_color);
-        lcd_fill_rect(56, 78, 12, 1, (time_field ==   SEC)? color : bg_color);
-        lcd_fill_rect(20, 88, 12, 1, (time_field ==   DAY)? color : bg_color);
-        lcd_fill_rect(38, 88, 12, 1, (time_field == MONTH)? color : bg_color);
-        lcd_fill_rect(56, 88, 24, 1, (time_field ==  YEAR)? color : bg_color);
 
         if(minus_100k_btn() == BTN_RLS)
         {
@@ -568,55 +595,82 @@ void modes_routine(uint16_t color, uint16_t bg_color)
             if(time_field ==  YEAR) time_struct.tm_year--;
         }
 
+        mktime(&time_struct);
         lcd_print_time();
 
     }
 
-    lcd_print(278, 70, SCALE_1, ALIGN_LEFT, "SAM",(bandwidth != BW_0K3)? 0x055F:0xB211, 0x0025);
-    lcd_print(278, 85, SCALE_1, ALIGN_LEFT, "0.3",(modulation != MOD_AM)? 0x055F:0xB211, 0x0025);
-
-    lcd_fill_rect(230, 79, 18, 2, (modulation == MOD_LSB) ? color:bg_color);  // MOD LSB underscore
-    lcd_fill_rect(254, 79, 18, 2, (modulation == MOD_USB) ? color:bg_color);  // MOD USB underscore
-    lcd_fill_rect(278, 79, 18, 2, (modulation == MOD_AM)  ? color:bg_color);  // MOD AM underscore
-    lcd_fill_rect(230, 94, 18, 2, (bandwidth == BW_4K8) ? color:bg_color);   // BW 4K8 underscore
-    lcd_fill_rect(254, 94, 18, 2, (bandwidth == BW_2K8) ? color:bg_color);   // BW 2k8 underscore
-    lcd_fill_rect(278, 94, 18, 2, (bandwidth == BW_0K3) ? color:bg_color);   // BW 0K3 underscore
-    lcd_fill_rect(230, 109, 18, 2, (attenuator ==  ATT0) ? color:bg_color);   // ATT 0 underscore
-    lcd_fill_rect(254, 109, 18, 2, (attenuator == ATT12) ? color:bg_color);   // ATT -12 underscore
-    lcd_fill_rect(278, 109, 18, 2, (attenuator == ATT24) ? color:bg_color);   // ATT -24 underscore
-
-    static uint8_t volume_blink_cnt;
-    if(volume_blink_cnt < 40) volume_blink_cnt ++;
-    else volume_blink_cnt = 0;
-
-    lcd_fill_rect(200, 125, 18, 2, (mode == VOLUME && volume_blink_cnt < 20) ? color:bg_color);   // VOL underscore, blinking 
-
-    for(uint8_t i=1; i < 32; i++)
+    if(held_once(&lock_hold, !gpio_get(LOCK_PORT, LOCK_PIN), now, 1000))
     {
-        lcd_fill_rect(232 + 2*i, 116, 1, 6, (volume >= i) ? 0x055F:bg_color);
+        if(mode == OPERATION) mode = LOCK;
+        else if(mode == LOCK) mode = OPERATION;
     }
 
-    static uint16_t lock_btn_delay;
-
-    if(!gpio_get(LOCK_PORT, LOCK_PIN))
+    /* Render only changed visible states. The initial call paints all fields. */
+    static bool drawn;
+    static uint8_t prev_mod, prev_bw, prev_att, prev_volume;
+    static uint8_t prev_time_field;
+    static bool prev_blink, prev_locked;
+    static uint32_t blink_started;
+    static bool blink_phase, was_volume;
+    if(mode != VOLUME)
+        blink_phase = false;
+    else if(!was_volume)
     {
-        if(lock_btn_delay < 100) lock_btn_delay++;
+        blink_started = now;
+        blink_phase = true;
     }
-    else lock_btn_delay = 0;
-
-    if(lock_btn_delay == 99)
+    else if((uint32_t)(now - blink_started) >= 200)
     {
-        switch(mode)
-        {
-            case OPERATION: mode = LOCK;      break;
-            case LOCK:      mode = OPERATION; break;
-        }
-
-        draw_lock();
+        blink_started = now;
+        blink_phase = !blink_phase;
     }
+    was_volume = mode == VOLUME;
+    bool blink = blink_phase;
+    bool locked = mode == LOCK;
+    uint8_t selected_time_field = mode == TIME_SET ? time_field : 0xff;
 
+    if(!drawn || (prev_bw == BW_0K3) != (bandwidth == BW_0K3))
+        lcd_print(278, 70, SCALE_1, ALIGN_LEFT, "SAM",
+                  bandwidth != BW_0K3 ? 0x055F : 0xB211, bg_color);
+    if(!drawn || (prev_mod == MOD_AM) != (modulation == MOD_AM))
+        lcd_print(278, 85, SCALE_1, ALIGN_LEFT, "0.3",
+                  modulation != MOD_AM ? 0x055F : 0xB211, bg_color);
 
+    for(uint8_t i = 0; i < 3; i++)
+    {
+        if(!drawn || (prev_mod == i) != (modulation == i))
+            lcd_fill_rect(230 + 24*i, 79, 18, 2, modulation == i ? color : bg_color);
+        if(!drawn || (prev_bw == i) != (bandwidth == i))
+            lcd_fill_rect(230 + 24*i, 94, 18, 2, bandwidth == i ? color : bg_color);
+        if(!drawn || (prev_att == i) != (attenuator == i))
+            lcd_fill_rect(230 + 24*i, 109, 18, 2, attenuator == i ? color : bg_color);
+    }
+    if(!drawn || blink != prev_blink)
+        lcd_fill_rect(200, 125, 18, 2, blink ? color : bg_color);
+
+    for(uint8_t i = 1; i < 32; i++)
+        if(!drawn || (prev_volume >= i) != (volume >= i))
+            lcd_fill_rect(232 + 2*i, 116, 1, 6, volume >= i ? 0x055F : bg_color);
+
+    const uint16_t field_x[] = {56, 38, 20, 20, 38, 56};
+    const uint16_t field_y[] = {78, 78, 78, 88, 88, 88};
+    for(uint8_t i = SEC; i <= YEAR; i++)
+        if(!drawn || (prev_time_field == i) != (selected_time_field == i))
+            lcd_fill_rect(field_x[i], field_y[i], i == YEAR ? 24 : 12, 1,
+                          selected_time_field == i ? color : bg_color);
+
+    if(!drawn || locked != prev_locked) draw_lock();
+    prev_mod = modulation;
+    prev_bw = bandwidth;
+    prev_att = attenuator;
+    prev_volume = volume;
+    prev_blink = blink;
+    prev_locked = locked;
+    prev_time_field = selected_time_field;
+    drawn = true;
 }
+
 
 bool freq_buttons_polling(void)
 {
@@ -709,9 +763,10 @@ void shutdown_timer()
     if(secs_shutdown > 0)
     {
         snprintf(print_buffer, sizeof(print_buffer), "OFF: %d min  ", secs_shutdown/60);
-        lcd_print(80, 115, SCALE_1, ALIGN_LEFT, print_buffer, 0x055f, 0x0025);
     }
-    else lcd_fill_rect(80, 115, 72, 8, 0x0025);
+    else print_buffer[0] = '\0';
+    print_changed(TEXT_SHUTDOWN, 80, 115, SCALE_1, ALIGN_LEFT,
+                  print_buffer, 0x055f, 0x0025);
 
     if(secs_shutdown == 1 && pwr_btn() != BTN_HLD)
     {
@@ -728,7 +783,7 @@ void sys_tick_handler(void)
 
 void main(void){
     
-    rcc_clock_setup_in_hsi_out_48mhz();
+    rcc_clock_setup_in_hsi_out_64mhz();
 
     systick_set_frequency(1000, rcc_ahb_frequency);
     systick_clear();
@@ -813,8 +868,6 @@ void main(void){
 
     si5351_init();
 
-    draw_lock();
-
     boot_flag = 0;
 
     gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);    // ATT 12
@@ -822,6 +875,7 @@ void main(void){
 
     battery_depleted = 0;
 
+    /*
     rcc_osc_on(RCC_HSI);
     rcc_wait_for_osc_ready(RCC_HSI);
     rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_HSICLK);
@@ -829,13 +883,22 @@ void main(void){
     rcc_osc_off(RCC_PLL);
     while (rcc_is_osc_ready(RCC_PLL)) {}
     rcc_clock_setup_in_hse_8mhz_out_72mhz();
-
+    
     systick_set_frequency(1000, rcc_ahb_frequency);
+    */
 
     shutdown_cancel = 1;
+    uint32_t last_loop = millis - LOOP_PERIOD_MS;
+    uint32_t fade_started = millis;
+    bool fade_active = false;
+    bool scale_drawn = false;
+    uint32_t scale_position_prev = 0;
 
     while(1)
     {
+        uint32_t now = millis;
+        if((uint32_t)(now - last_loop) < LOOP_PERIOD_MS) continue;
+        last_loop = now;  // No catch-up burst after an overlong pass.
 
         buttons_poll();
         encoder_delta = encoder_poll();
@@ -881,7 +944,14 @@ void main(void){
         if(freq > 22000000) freq = 22000000;
 
         flush_scale = freq_buttons_polling();
-        lcd_draw_scale(0, 5, 320, 9, freq, flush_scale);
+        /* lcd_draw_scale rounds frequency to 125 Hz per pixel. */
+        uint32_t scale_position = (freq + 125/2) / 125;
+        if(!scale_drawn || scale_position != scale_position_prev || flush_scale)
+        {
+            lcd_draw_scale(0, 5, 320, 9, freq, flush_scale);
+            scale_position_prev = scale_position;
+            scale_drawn = true;
+        }
         flush_scale = 0;
 
         draw_visor();
@@ -901,20 +971,27 @@ void main(void){
         s_meter_print(spi_rx.s_meter_byte, ovr);
         s_meter_bar_draw(spi_rx.s_meter_byte);
 
-        if(modulation == MOD_AM)        // Carrier lock indicator
+        static bool status_drawn;
+        static uint8_t sam_prev, correction_prev;
+        uint8_t sam_state = modulation == MOD_AM ? (sam_lock ? 2 : 1) : 0;
+        uint8_t correction_state = mode == CORRECTION ? (corr_err_dir ? 2 : 1) : 0;
+        if(!status_drawn || sam_state != sam_prev)
+            lcd_fill_rect(300, 70, 7, 7,
+                          sam_state == 2 ? 0x4ec0 : sam_state == 1 ? 0x5aeb : 0x0025);
+        if(!status_drawn || correction_state != correction_prev)
         {
-            if(sam_lock) lcd_fill_rect(300, 70, 7, 7, 0x4ec0);
-            else lcd_fill_rect(300, 70, 7, 7, 0x5aeb);
+            if(correction_state != 0)
+            {
+                if(!status_drawn || correction_prev == 0)
+                    lcd_fill_rect(160, 68, 3, 7, 0x055f);
+                lcd_fill_rect(148, 68, 7, 7, corr_err_dir ? 0x4ec0 : 0x0025);
+                lcd_fill_rect(168, 68, 7, 7, corr_err_dir ? 0x0025 : 0x4ec0);
+            }
+            else lcd_fill_rect(148, 68, 27, 7, 0x0025);
         }
-        else lcd_fill_rect(300, 70, 7, 7, 0x0025);
-
-        if(mode == CORRECTION)
-        {
-            lcd_fill_rect(160, 68, 3, 7, 0x055f);   // Bar
-            lcd_fill_rect(148, 68, 7, 7, corr_err_dir? 0x4ec0 : 0x0025);   // Left box
-            lcd_fill_rect(168, 68, 7, 7, corr_err_dir? 0x0025 : 0x4ec0);   // Right box
-        }
-        else lcd_fill_rect(148, 68, 27, 7, 0x0025);
+        sam_prev = sam_state;
+        correction_prev = correction_state;
+        status_drawn = true;
 
         modes_routine(0x3d40, 0x0025);
 
@@ -941,12 +1018,17 @@ void main(void){
         if(attenuator == ATT24) gpio_set(GPIOA, GPIO12);
         else gpio_clear(GPIOA, GPIO12);
 
-        if(battery_depleted)
+        if(!battery_depleted)
+            fade_active = false;
+        else if(!fade_active)
         {
-            if(vol_fade_cnt < VOL_FADE_FRAMES) vol_fade_cnt++;
-            else vol_fade_cnt = 0;
-
-            if(vol_fade_cnt == 0 && volume > 0) volume--;
+            fade_started = now;
+            fade_active = true;
+        }
+        else if((uint32_t)(now - fade_started) >= VOL_FADE_MS)
+        {
+            fade_started = now;
+            if(volume > 0) volume--;
         }
 
     }
