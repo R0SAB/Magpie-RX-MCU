@@ -334,7 +334,7 @@ void draw_visor(void)
     bandwidth_prev = bandwidth;
 }
 
-void draw_lock()
+void draw_lock(bool locked)
 {
     uint8_t size_x = 18;
     uint8_t size_y = 24;
@@ -343,7 +343,7 @@ void draw_lock()
     uint16_t unlock_color = 0x0660;
     uint16_t bg_color = 0x0025;
 
-    if(mode == LOCK) lcd_draw_bmp(295, 140, size_x, size_y, bmp_locked, 1, lock_color, bg_color);
+    if(locked) lcd_draw_bmp(295, 140, size_x, size_y, bmp_locked, 1, lock_color, bg_color);
     else             lcd_draw_bmp(295, 140, size_x, size_y, bmp_unlocked, 1, unlock_color, bg_color);
 }
 
@@ -627,7 +627,8 @@ void modes_routine(uint16_t color, uint16_t bg_color)
     }
     was_volume = mode == VOLUME;
     bool blink = blink_phase;
-    bool locked = mode == LOCK;
+    /* VOLUME temporarily replaces the operating mode, but does not unlock. */
+    bool locked = mode == LOCK || (mode == VOLUME && vol_prev_mode == LOCK);
     uint8_t selected_time_field = mode == TIME_SET ? time_field : 0xff;
 
     if(!drawn || (prev_bw == BW_0K3) != (bandwidth == BW_0K3))
@@ -660,7 +661,7 @@ void modes_routine(uint16_t color, uint16_t bg_color)
             lcd_fill_rect(field_x[i], field_y[i], i == YEAR ? 24 : 12, 1,
                           selected_time_field == i ? color : bg_color);
 
-    if(!drawn || locked != prev_locked) draw_lock();
+    if(!drawn || locked != prev_locked) draw_lock(locked);
     prev_mod = modulation;
     prev_bw = bandwidth;
     prev_att = attenuator;
@@ -874,18 +875,6 @@ void main(void){
     gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);    // ATT 24
 
     battery_depleted = 0;
-
-    /*
-    rcc_osc_on(RCC_HSI);
-    rcc_wait_for_osc_ready(RCC_HSI);
-    rcc_set_sysclk_source(RCC_CFGR_SW_SYSCLKSEL_HSICLK);
-    while (RCC_CFGR & RCC_CFGR_SWS) {}
-    rcc_osc_off(RCC_PLL);
-    while (rcc_is_osc_ready(RCC_PLL)) {}
-    rcc_clock_setup_in_hse_8mhz_out_72mhz();
-    
-    systick_set_frequency(1000, rcc_ahb_frequency);
-    */
 
     shutdown_cancel = 1;
     uint32_t last_loop = millis - LOOP_PERIOD_MS;
